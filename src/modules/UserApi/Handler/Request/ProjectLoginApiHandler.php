@@ -8,18 +8,18 @@ use Syntexa\Core\Attributes\AsRequestHandler;
 use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
-use Syntexa\Modules\UserApi\Overrides\Request\LoginApiRequestOverride;
+use Syntexa\User\Application\Request\LoginApiRequest;
 use Syntexa\User\Application\Response\LoginApiResponse;
 
 /**
  * Project-specific handler that extends module logic
  * This handler runs AFTER the module's LoginApiHandler
  */
-#[AsRequestHandler(for: LoginApiRequestOverride::class)]
+#[AsRequestHandler(for: LoginApiRequest::class)]
 class ProjectLoginApiHandler implements HttpHandlerInterface
 {
     /**
-     * @param LoginApiRequestOverride $request
+     * @param LoginApiRequest $request
      * @param LoginApiResponse $response
      * @return LoginApiResponse
      */
@@ -27,15 +27,12 @@ class ProjectLoginApiHandler implements HttpHandlerInterface
     {
         /** @var LoginApiResponse $response */
         
-        // Access extended fields from LoginApiRequestOverride
-        if ($request->email) {
-            // Custom project logic here
-            if (method_exists($response, 'setRenderContext')) {
-                $context = method_exists($response, 'getRenderContext') ? $response->getRenderContext() : [];
-                $context['email'] = $request->email;
-                $context['utmSource'] = $request->utmSource ?? 'unknown';
-                $response->setRenderContext($context);
-            }
+        // Example: enrich response context with metadata (no override needed)
+        if (method_exists($response, 'setRenderContext')) {
+            $context = method_exists($response, 'getRenderContext') ? $response->getRenderContext() : [];
+            $context['requestId'] = $request->id ?? null;
+            $context['processedBy'] = self::class;
+            $response->setRenderContext($context);
         }
         
         return $response;

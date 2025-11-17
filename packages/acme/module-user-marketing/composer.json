@@ -1,0 +1,21 @@
+{
+    "name": "acme/module-user-marketing",
+    "description": "Marketing extensions for user flows",
+    "type": "syntexa-module",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Acme\\Marketing\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "name": "user-marketing",
+            "description": "Adds marketing fields for user login flows"
+        }
+    }
+}
+

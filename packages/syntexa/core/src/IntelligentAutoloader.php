@@ -15,6 +15,29 @@ class IntelligentAutoloader
     private static array $classMap = [];
     private static bool $initialized = false;
     
+    private static function allowNamespacePrefix(string $prefix): void
+    {
+        if ($prefix === '') {
+            return;
+        }
+        $normalized = rtrim($prefix, '\\') . '\\';
+        self::$allowedNamespacePrefixes[$normalized] = true;
+    }
+    
+    private static function isNamespaceAllowed(string $namespace): bool
+    {
+        $normalized = rtrim($namespace, '\\') . '\\';
+        foreach (array_keys(self::$allowedNamespacePrefixes) as $prefix) {
+            if (str_starts_with($normalized, $prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    private static array $allowedNamespacePrefixes = [
+        'Syntexa\\' => true,
+    ];
+    
     /**
      * Initialize the intelligent autoloader
      */
@@ -64,6 +87,17 @@ class IntelligentAutoloader
             $directories[] = $projectRoot . '/src/modules';
         }
         
+        // Include module-specific PSR-4 paths (may use non-Syntexa namespaces)
+        $moduleMappings = self::getModuleAutoloadMappings();
+        foreach ($moduleMappings as $prefix => $paths) {
+            self::allowNamespacePrefix($prefix);
+            foreach ($paths as $path) {
+                $directories[] = $path;
+            }
+        }
+        
+        $directories = array_values(array_unique($directories));
+        
         // Add Syntexa\Core classes manually
         self::addSyntexaCoreClasses();
         
@@ -104,17 +138,16 @@ class IntelligentAutoloader
             }
             
             $namespace = $namespaceMatches[1];
-            // Limit discovery to our namespaces only to avoid vendor noise
-            if (strpos($namespace, 'Syntexa\\') !== 0) {
+            if (!self::isNamespaceAllowed($namespace)) {
                 return;
             }
             
-            // Extract class name
-            if (!preg_match('/class\s+(\w+)/', $content, $classMatches)) {
-                return; // No class found
+            // Extract class/trait/interface name
+            if (!preg_match('/\b(class|interface|trait)\s+(\w+)/', $content, $classMatches)) {
+                return; // No declaration found
             }
             
-            $className = $classMatches[1];
+            $className = $classMatches[2];
             $fullClassName = $namespace . '\\' . $className;
             
             // Store in class map
@@ -178,7 +211,7 @@ class IntelligentAutoloader
         $classes = [];
         
         foreach (self::$classMap as $className => $filePath) {
-            if (class_exists($className)) {
+            if (class_exists($className) || interface_exists($className) || trait_exists($className)) {
                 $reflection = new \ReflectionClass($className);
                 
                 if ($reflection->getAttributes($attributeClass)) {
@@ -274,5 +307,14 @@ class IntelligentAutoloader
                 self::$classMap[$className] = $fullPath;
             }
         }
+    }
+
+    private static function getModuleAutoloadMappings(): array
+    {
+        if (!class_exists(ModuleRegistry::class)) {
+            return [];
+        }
+        ModuleRegistry::initialize();
+        return ModuleRegistry::getModuleAutoloadMappings();
     }
 }
