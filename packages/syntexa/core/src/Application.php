@@ -92,42 +92,42 @@ class Application
 
                 // Apply AsResponse defaults if present
                 if ($resDto) {
-                    try {
-                        $r = new \ReflectionClass($resDto);
-                        $attrs = $r->getAttributes('Syntexa\\Core\\Attributes\\AsResponse');
-                        if (!empty($attrs)) {
-                            $a = $attrs[0]->newInstance();
-                            if (method_exists($resDto, 'setRenderHandle')) {
-                                $resDto->setRenderHandle($a->handle ?? '');
-                            }
-                            if (method_exists($resDto, 'setRenderContext') && isset($a->context)) {
-                                $resDto->setRenderContext($a->context);
-                            }
-                            if (method_exists($resDto, 'setRenderFormat')) {
-                                $resDto->setRenderFormat($a->format ?? null);
-                            }
-                            if (method_exists($resDto, 'setRendererClass')) {
-                                $resDto->setRendererClass($a->renderer ?? null);
-                            }
+                    $resolvedResponse = \Syntexa\Core\Discovery\AttributeDiscovery::getResolvedResponseAttributes(get_class($resDto));
+                    if ($resolvedResponse) {
+                        if (isset($resolvedResponse['handle']) && method_exists($resDto, 'setRenderHandle')) {
+                            $resDto->setRenderHandle($resolvedResponse['handle']);
                         }
-                        // Apply response attribute overrides from discovery (take precedence)
-                        $ov = \Syntexa\Core\Discovery\AttributeDiscovery::getResponseAttrOverride($r->getName());
-                        if ($ov) {
-                            if (isset($ov['handle']) && method_exists($resDto, 'setRenderHandle')) {
-                                $resDto->setRenderHandle($ov['handle']);
-                            }
-                            if (isset($ov['context']) && method_exists($resDto, 'setRenderContext')) {
-                                $resDto->setRenderContext($ov['context']);
-                            }
-                            if (isset($ov['format']) && method_exists($resDto, 'setRenderFormat')) {
-                                $resDto->setRenderFormat($ov['format']);
-                            }
-                            if (isset($ov['renderer']) && method_exists($resDto, 'setRendererClass')) {
-                                $resDto->setRendererClass($ov['renderer']);
-                            }
+                        if (isset($resolvedResponse['context']) && method_exists($resDto, 'setRenderContext')) {
+                            $resDto->setRenderContext($resolvedResponse['context']);
                         }
-                    } catch (\Throwable $e) {
-                        // ignore
+                        if (array_key_exists('format', $resolvedResponse) && method_exists($resDto, 'setRenderFormat')) {
+                            $resDto->setRenderFormat($resolvedResponse['format']);
+                        }
+                        if (isset($resolvedResponse['renderer']) && method_exists($resDto, 'setRendererClass')) {
+                            $resDto->setRendererClass($resolvedResponse['renderer']);
+                        }
+                    } else {
+                        try {
+                            $r = new \ReflectionClass($resDto);
+                            $attrs = $r->getAttributes('Syntexa\\Core\\Attributes\\AsResponse');
+                            if (!empty($attrs)) {
+                                $a = $attrs[0]->newInstance();
+                                if (method_exists($resDto, 'setRenderHandle')) {
+                                    $resDto->setRenderHandle($a->handle ?? '');
+                                }
+                                if (method_exists($resDto, 'setRenderContext') && isset($a->context)) {
+                                    $resDto->setRenderContext($a->context);
+                                }
+                                if (method_exists($resDto, 'setRenderFormat')) {
+                                    $resDto->setRenderFormat($a->format ?? null);
+                                }
+                                if (method_exists($resDto, 'setRendererClass')) {
+                                    $resDto->setRendererClass($a->renderer ?? null);
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            // ignore
+                        }
                     }
                 }
 

@@ -247,18 +247,6 @@ class ResponseWrapperGenerator
         $attrParts = [
             "of: {$baseAlias}::class",
         ];
-        if ($attr->handle !== null) {
-            $attrParts[] = "handle: '" . addslashes(EnvValueResolver::resolve($attr->handle)) . "'";
-        }
-        if ($attr->format !== null) {
-            $attrParts[] = 'format: \\' . ltrim($attr->format::class, '\\') . '::' . $attr->format->name;
-        }
-        if ($attr->renderer !== null) {
-            $attrParts[] = "renderer: '" . addslashes(EnvValueResolver::resolve($attr->renderer)) . "'";
-        }
-        if (!empty($attr->context)) {
-            $attrParts[] = 'context: ' . self::exportValue(EnvValueResolver::resolve($attr->context));
-        }
 
         $attrString = implode(",\n    ", $attrParts);
 
@@ -268,18 +256,6 @@ class ResponseWrapperGenerator
             array_filter($traitAliases)
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
-
-        $extends = '';
-        if (!empty($target['parent'])) {
-            $extendsAlias = self::registerImport($target['parent'], $imports, $usedAliases, self::buildVendorAlias($target['parent'], 'Base'));
-            $extends = " extends {$extendsAlias}";
-        }
-
-        $implements = [];
-        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
-            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
-        }
-        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Response';
         $className = $target['short'];
@@ -313,7 +289,7 @@ use Syntexa\Core\Attributes\AsResponse;
 #[AsResponse(
     {$attrString}
 )]
-class {$className}{$extends}{$implementsString}
+class {$className}
 {
 {$traitBlock}}
 

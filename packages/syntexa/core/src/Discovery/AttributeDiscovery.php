@@ -111,6 +111,11 @@ class AttributeDiscovery
         self::$httpRequests = [];
         self::$httpHandlers = [];
         self::$requestClassAliases = [];
+        self::$rawRequestAttrs = [];
+        self::$resolvedRequestAttrs = [];
+        self::$rawResponseAttrs = [];
+        self::$resolvedResponseAttrs = [];
+        self::$responseClassAliases = [];
 
         // Find all classes with AsRequest attribute
         $httpRequestClasses = array_filter(
@@ -154,6 +159,9 @@ class AttributeDiscovery
                 echo "⚠️  Error analyzing request {$className}: " . $e->getMessage() . "\n";
             }
         }
+
+        // Process responses before finalizing requests
+        self::processResponseAttributes();
 
         foreach ($requestGroups as $baseClass => $candidates) {
             $projectCandidates = array_values(array_filter($candidates, fn ($c) => self::isProjectRequest($c['file'])));
@@ -305,6 +313,9 @@ class AttributeDiscovery
         } else {
             $merged = self::applyRequestDefaults($attr, $meta['short'], $className);
         }
+        if (!empty($merged['responseWith'])) {
+            $merged['responseWith'] = self::canonicalResponseClass($merged['responseWith']);
+        }
         return $cache[$className] = $merged;
     }
 
@@ -335,6 +346,122 @@ class AttributeDiscovery
             'public' => $attr['public'] ?? true,
             'responseWith' => $attr['responseWith'],
         ];
+    }
+
+    private static function processResponseAttributes(): void
+    {
+        $responseClasses = array_filter(
+            IntelligentAutoloader::findClassesWithAttribute(AsResponse::class),
+            fn ($class) => str_starts_with($class, 'Syntexa\\')
+        );
+        if (empty($responseClasses)) {
+            return;
+        }
+        echo "🔍 Found " . count($responseClasses) . " response classes\n";
+
+        $responseMeta = [];
+        $responseGroups = [];
+        foreach ($responseClasses as $className) {
+            try {
+                $class = new ReflectionClass($className);
+                $attrs = $class->getAttributes(AsResponse::class);
+                if (empty($attrs)) {
+                    continue;
+                }
+                /** @var AsResponse $attr */
+                $attr = $attrs[0]->newInstance();
+                $meta = [
+                    'class' => $className,
+                    'short' => $class->getShortName(),
+                    'file' => $class->getFileName() ?: '',
+                    'priority' => self::determineSourcePriority($class->getFileName() ?: ''),
+                    'attr' => [
+                        'handle' => $attr->handle !== null ? EnvValueResolver::resolve($attr->handle) : null,
+                        'format' => $attr->format,
+                        'renderer' => $attr->renderer !== null ? EnvValueResolver::resolve($attr->renderer) : null,
+                        'context' => $attr->context ?? [],
+                        'of' => $attr->of ? ltrim($attr->of, '\\') : null,
+                    ],
+                ];
+                $responseMeta[$className] = $meta;
+                $groupKey = $meta['attr']['of'] ?? $className;
+                $responseGroups[$groupKey][] = $meta;
+            } catch (\Throwable $e) {
+                echo "⚠️  Error analyzing response {$className}: " . $e->getMessage() . "\n";
+            }
+        }
+
+        if (empty($responseMeta)) {
+            return;
+        }
+
+        self::$rawResponseAttrs = $responseMeta;
+        $cache = [];
+        foreach ($responseMeta as $className => $meta) {
+            self::$resolvedResponseAttrs[$className] = self::resolveResponseAttributes($className, $responseMeta, $cache);
+        }
+
+        foreach ($responseGroups as $baseClass => $candidates) {
+            usort($candidates, fn ($a, $b) => $b['priority'] <=> $a['priority']);
+            $selected = $candidates[0]['class'];
+            foreach ($candidates as $candidate) {
+                self::$responseClassAliases[$candidate['class']] = $selected;
+            }
+        }
+    }
+
+    private static function resolveResponseAttributes(string $className, array $metaMap, array &$cache = []): array
+    {
+        if (isset($cache[$className])) {
+            return $cache[$className];
+        }
+        if (!isset($metaMap[$className])) {
+            throw new \RuntimeException("Response metadata missing for {$className}");
+        }
+        $meta = $metaMap[$className];
+        $attr = $meta['attr'];
+        if (!empty($attr['of'])) {
+            $baseAttr = self::resolveResponseAttributes($attr['of'], $metaMap, $cache);
+            $merged = self::mergeResponseAttributes($baseAttr, $attr);
+        } else {
+            $merged = self::applyResponseDefaults($attr, $meta['short'], $className);
+        }
+        return $cache[$className] = $merged;
+    }
+
+    private static function mergeResponseAttributes(array $base, array $override): array
+    {
+        $result = $base;
+        foreach (['handle', 'format', 'renderer', 'context'] as $key) {
+            if ($override[$key] !== null && $override[$key] !== []) {
+                $result[$key] = $override[$key];
+            }
+        }
+        return $result;
+    }
+
+    private static function applyResponseDefaults(array $attr, string $shortName, string $className): array
+    {
+        return [
+            'handle' => $attr['handle'] ?? $shortName,
+            'format' => $attr['format'] ?? null,
+            'renderer' => $attr['renderer'] ?? null,
+            'context' => $attr['context'] ?? [],
+        ];
+    }
+
+    private static function canonicalResponseClass(?string $class): ?string
+    {
+        if ($class === null) {
+            return null;
+        }
+        return self::$responseClassAliases[$class] ?? $class;
+    }
+
+    public static function getResolvedResponseAttributes(string $class): ?array
+    {
+        $canonical = self::$responseClassAliases[$class] ?? $class;
+        return self::$resolvedResponseAttrs[$canonical] ?? null;
     }
 
     private static function determineSourcePriority(string $file): int
@@ -428,7 +555,13 @@ class AttributeDiscovery
                 $attrs['context'] = EnvValueResolver::resolve($meta->context);
             }
             if (!empty($attrs)) {
-                self::$responseAttrOverrides[$target] = $attrs;
+                $canonical = self::canonicalResponseClass($target);
+                $current = self::$resolvedResponseAttrs[$canonical] ?? self::applyResponseDefaults([], self::classBasename($canonical), $canonical);
+                foreach ($attrs as $key => $value) {
+                    $current[$key] = $value;
+                }
+                self::$resolvedResponseAttrs[$canonical] = $current;
+                self::$responseAttrOverrides[$canonical] = $attrs;
             }
             echo "🔧 Collected response override for {$target}\n";
         }
@@ -437,6 +570,12 @@ class AttributeDiscovery
     public static function getResponseAttrOverride(string $class): ?array
     {
         return self::$responseAttrOverrides[$class] ?? null;
+    }
+
+    private static function classBasename(string $class): string
+    {
+        $pos = strrpos($class, '\\');
+        return $pos === false ? $class : substr($class, $pos + 1);
     }
     
     /**
