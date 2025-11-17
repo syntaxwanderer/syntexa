@@ -7,6 +7,7 @@ namespace Syntexa\User\Application\Request;
 use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\User\Application\Response\LoginApiResponse;
+use Syntexa\User\Application\Request\Traits\LoginApiRequiredFieldsTrait;
 
 #[AsRequest(
     path: '/api/login',
@@ -16,6 +17,6 @@ use Syntexa\User\Application\Response\LoginApiResponse;
 )]
 class LoginApiRequest implements RequestInterface
 {
-    public int $id;
+    use LoginApiRequiredFieldsTrait;
 }
 

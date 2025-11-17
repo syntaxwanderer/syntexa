@@ -24,6 +24,11 @@ class AttributeDiscovery
     private static array $httpRequests = [];
     private static array $httpHandlers = [];
     private static array $requestClassAliases = [];
+    private static array $rawRequestAttrs = [];
+    private static array $resolvedRequestAttrs = [];
+    private static array $rawResponseAttrs = [];
+    private static array $resolvedResponseAttrs = [];
+    private static array $responseClassAliases = [];
     private static array $responseAttrOverrides = [];
     private static bool $initialized = false;
     
@@ -113,7 +118,8 @@ class AttributeDiscovery
             fn ($class) => str_starts_with($class, 'Syntexa\\')
         );
         echo "🔍 Found " . count($httpRequestClasses) . " request classes\n";
-        $requestCandidates = [];
+        $requestMeta = [];
+        $requestGroups = [];
         foreach ($httpRequestClasses as $className) {
             try {
                 $class = new ReflectionClass($className);
@@ -123,34 +129,72 @@ class AttributeDiscovery
                 }
                 /** @var AsRequest $attr */
                 $attr = $attrs[0]->newInstance();
-                $key = self::buildRequestKey($attr, $class);
-                $requestCandidates[$key][] = [
-                    'class' => $class,
-                    'className' => $className,
-                    'attr' => $attr,
+                $meta = [
+                    'class' => $className,
+                    'short' => $class->getShortName(),
                     'file' => $class->getFileName() ?: '',
                     'priority' => self::determineSourcePriority($class->getFileName() ?: ''),
-                    'isProject' => self::isProjectRequest($class->getFileName() ?: ''),
+                    'attr' => [
+                        'path' => EnvValueResolver::resolve($attr->path),
+                        'methods' => EnvValueResolver::resolve($attr->methods),
+                        'name' => $attr->name !== null ? EnvValueResolver::resolve($attr->name) : null,
+                        'requirements' => EnvValueResolver::resolve($attr->requirements),
+                        'defaults' => EnvValueResolver::resolve($attr->defaults),
+                        'options' => EnvValueResolver::resolve($attr->options),
+                        'tags' => EnvValueResolver::resolve($attr->tags),
+                        'public' => $attr->public,
+                        'responseWith' => $attr->responseWith !== null ? EnvValueResolver::resolve($attr->responseWith) : null,
+                        'of' => $attr->of ? ltrim($attr->of, '\\') : null,
+                    ],
                 ];
+                $requestMeta[$className] = $meta;
+                $groupKey = $meta['attr']['of'] ?? $className;
+                $requestGroups[$groupKey][] = $meta;
             } catch (\Throwable $e) {
                 echo "⚠️  Error analyzing request {$className}: " . $e->getMessage() . "\n";
             }
         }
 
-        foreach ($requestCandidates as $key => $candidates) {
-            $projectCandidates = array_values(array_filter($candidates, fn ($c) => $c['isProject']));
+        foreach ($requestGroups as $baseClass => $candidates) {
+            $projectCandidates = array_values(array_filter($candidates, fn ($c) => self::isProjectRequest($c['file'])));
             if (empty($projectCandidates)) {
-                echo "⚠️  Skipping request '{$key}' – generate wrapper in src/ to activate it.\n";
+                echo "⚠️  Skipping request '{$baseClass}' – generate wrapper in src/ to activate it.\n";
                 continue;
             }
             usort($projectCandidates, fn ($a, $b) => $b['priority'] <=> $a['priority']);
             $selected = $projectCandidates[0];
 
-            foreach ($candidates as $candidate) {
-                self::$requestClassAliases[$candidate['className']] = $selected['className'];
-            }
+            $resolved = self::resolveRequestAttributes($selected['class'], $requestMeta);
 
-            self::registerRequestCandidate($selected);
+            self::$httpRequests[$selected['class']] = [
+                'requestClass' => $selected['class'],
+                'path' => $resolved['path'],
+                'methods' => $resolved['methods'],
+                'name' => $resolved['name'],
+                'responseClass' => $resolved['responseWith'],
+                'file' => $selected['file'],
+                'handlers' => [],
+            ];
+
+            self::$routes[] = [
+                'path' => $resolved['path'],
+                'methods' => $resolved['methods'],
+                'name' => $resolved['name'],
+                'class' => $selected['class'],
+                'method' => '__invoke',
+                'requirements' => $resolved['requirements'],
+                'defaults' => $resolved['defaults'],
+                'options' => $resolved['options'],
+                'tags' => $resolved['tags'],
+                'public' => $resolved['public'],
+                'type' => 'http-request'
+            ];
+
+            echo "✅ Registered request: {$resolved['path']} -> {$selected['class']} (source: {$selected['file']})\n";
+
+            foreach ($candidates as $candidate) {
+                self::$requestClassAliases[$candidate['class']] = $selected['class'];
+            }
         }
 
         // Apply response overrides from src (AsResponseOverride) — only render hints, not class swap
@@ -245,53 +289,52 @@ class AttributeDiscovery
         }
     }
 
-    private static function registerRequestCandidate(array $candidate): void
+    private static function resolveRequestAttributes(string $className, array $metaMap, array &$cache = []): array
     {
-        /** @var ReflectionClass $class */
-        $class = $candidate['class'];
-        /** @var AsRequest $attr */
-        $attr = $candidate['attr'];
-
-        $path = EnvValueResolver::resolve($attr->path);
-        $methods = EnvValueResolver::resolve($attr->methods);
-        $name = $attr->name !== null ? EnvValueResolver::resolve($attr->name) : null;
-        $responseWith = $attr->responseWith !== '' ? EnvValueResolver::resolve($attr->responseWith) : '';
-
-        self::$httpRequests[$class->getName()] = [
-            'requestClass' => $class->getName(),
-            'path' => $path,
-            'methods' => $methods,
-            'name' => $name ?? $class->getShortName(),
-            'responseClass' => $responseWith ?: null,
-            'file' => $class->getFileName(),
-            'handlers' => [],
-        ];
-
-        self::$routes[] = [
-            'path' => $path,
-            'methods' => $methods,
-            'name' => $name ?? $class->getShortName(),
-            'class' => $class->getName(),
-            'method' => '__invoke',
-            'requirements' => EnvValueResolver::resolve($attr->requirements),
-            'defaults' => EnvValueResolver::resolve($attr->defaults),
-            'options' => EnvValueResolver::resolve($attr->options),
-            'tags' => EnvValueResolver::resolve($attr->tags),
-            'public' => $attr->public,
-            'type' => 'http-request'
-        ];
-
-        echo "✅ Registered request: {$path} -> {$class->getName()} (source: {$candidate['file']})\n";
+        if (isset($cache[$className])) {
+            return $cache[$className];
+        }
+        if (!isset($metaMap[$className])) {
+            throw new \RuntimeException("Request metadata missing for {$className}");
+        }
+        $meta = $metaMap[$className];
+        $attr = $meta['attr'];
+        if (!empty($attr['of'])) {
+            $baseAttr = self::resolveRequestAttributes($attr['of'], $metaMap, $cache);
+            $merged = self::mergeRequestAttributes($baseAttr, $attr);
+        } else {
+            $merged = self::applyRequestDefaults($attr, $meta['short'], $className);
+        }
+        return $cache[$className] = $merged;
     }
 
-    private static function buildRequestKey(AsRequest $attr, ReflectionClass $class): string
+    private static function mergeRequestAttributes(array $base, array $override): array
     {
-        $path = EnvValueResolver::resolve($attr->path);
-        $methods = EnvValueResolver::resolve($attr->methods);
-        $methodKey = implode(',', $methods);
-        $name = $attr->name !== null ? EnvValueResolver::resolve($attr->name) : $class->getShortName();
+        $result = $base;
+        foreach (['path','methods','name','requirements','defaults','options','tags','public','responseWith'] as $key) {
+            if ($override[$key] !== null) {
+                $result[$key] = $override[$key];
+            }
+        }
+        return $result;
+    }
 
-        return $name . '|' . $path . '|' . $methodKey;
+    private static function applyRequestDefaults(array $attr, string $shortName, string $className): array
+    {
+        if ($attr['path'] === null) {
+            throw new \RuntimeException("Request {$className} must define a path");
+        }
+        return [
+            'path' => $attr['path'],
+            'methods' => $attr['methods'] ?? ['GET'],
+            'name' => $attr['name'] ?? $shortName,
+            'requirements' => $attr['requirements'] ?? [],
+            'defaults' => $attr['defaults'] ?? [],
+            'options' => $attr['options'] ?? [],
+            'tags' => $attr['tags'] ?? [],
+            'public' => $attr['public'] ?? true,
+            'responseWith' => $attr['responseWith'],
+        ];
     }
 
     private static function determineSourcePriority(string $file): int

@@ -76,6 +76,8 @@ class ResponseWrapperGenerator
                 'attr' => $attrs[0]->newInstance(),
                 'file' => $reflection->getFileName() ?: '',
                 'module' => self::detectModule($reflection->getFileName() ?: ''),
+                'parent' => $reflection->getParentClass() ? $reflection->getParentClass()->getName() : null,
+                'interfaces' => $reflection->getInterfaceNames(),
             ];
         }
 
@@ -232,7 +234,19 @@ class ResponseWrapperGenerator
     {
         /** @var AsResponse $attr */
         $attr = $target['attr'];
-        $attrParts = [];
+        $imports = [];
+        $usedAliases = [];
+
+        $baseAlias = self::registerImport(
+            $target['class'],
+            $imports,
+            $usedAliases,
+            self::buildVendorAlias($target['class'], 'Base')
+        );
+
+        $attrParts = [
+            "of: {$baseAlias}::class",
+        ];
         if ($attr->handle !== null) {
             $attrParts[] = "handle: '" . addslashes(EnvValueResolver::resolve($attr->handle)) . "'";
         }
@@ -247,19 +261,6 @@ class ResponseWrapperGenerator
         }
 
         $attrString = implode(",\n    ", $attrParts);
-        if ($attrString === '') {
-            $attrString = "// no AsResponse metadata";
-        }
-
-        $imports = [];
-        $usedAliases = [];
-
-        $baseAlias = self::registerImport(
-            $target['class'],
-            $imports,
-            $usedAliases,
-            self::buildVendorAlias($target['class'], 'Base')
-        );
 
         $traitAliases = self::registerTraitImports($traits, $imports, $usedAliases);
         $traitLines = array_map(
@@ -267,6 +268,18 @@ class ResponseWrapperGenerator
             array_filter($traitAliases)
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
+
+        $extends = '';
+        if (!empty($target['parent'])) {
+            $extendsAlias = self::registerImport($target['parent'], $imports, $usedAliases, self::buildVendorAlias($target['parent'], 'Base'));
+            $extends = " extends {$extendsAlias}";
+        }
+
+        $implements = [];
+        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
+            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+        }
+        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Response';
         $className = $target['short'];
@@ -287,7 +300,7 @@ PHP;
 
 $useLines = array_map(
     static fn ($data) => 'use ' . $data['fqn'] . ($data['alias'] !== $data['short'] ? ' as ' . $data['alias'] : '') . ';',
-    $imports
+    self::uniqueImports($imports)
 );
 $useBlock = empty($useLines) ? '' : implode("\n", $useLines) . "\n";
 
@@ -300,7 +313,7 @@ use Syntexa\Core\Attributes\AsResponse;
 #[AsResponse(
     {$attrString}
 )]
-class {$className} extends {$baseAlias}
+class {$className}{$extends}{$implementsString}
 {
 {$traitBlock}}
 
@@ -361,6 +374,26 @@ PHP;
             $vendor = 'Vendor';
         }
         return $vendor . $short . $suffix;
+    }
+
+    private static function exportClassReference(string $class): string
+    {
+        return '\\' . ltrim($class, '\\');
+    }
+
+    private static function uniqueImports(array $imports): array
+    {
+        $seen = [];
+        $result = [];
+        foreach ($imports as $import) {
+            $key = $import['fqn'] . ' as ' . $import['alias'];
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $import;
+        }
+        return $result;
     }
 
     private static function exportValue(mixed $value): string

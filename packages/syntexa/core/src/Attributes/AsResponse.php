@@ -11,10 +11,11 @@ use Attribute;
 class AsResponse
 {
     public function __construct(
-        public string $handle,
-        public array $context = [],
+        public ?string $of = null,
+        public ?string $handle = null,
+        public ?array $context = null,
         public ?ResponseFormat $format = null,
-        public ?string $renderer = null
+        public ?string $renderer = null,
     ) {}
 }
 

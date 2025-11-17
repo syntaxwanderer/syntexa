@@ -12,18 +12,19 @@ use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\User\Application\Request\LoginApiRequest as SyntexaLoginApiRequestBase;
 use Syntexa\Modules\UserApi\Response\LoginApiResponse as SyntexaLoginApiResponse;
 use Acme\Marketing\Request\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
+use Syntexa\User\Application\Request\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
 use Syntexa\User\Application\Request\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
+use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 
 #[AsRequest(
-    path: '/api/login',
-    methods: ['POST'],
-    name: 'api.login',
+    of: SyntexaLoginApiRequestBase::class,
     responseWith: SyntexaLoginApiResponse::class
 )]
-class LoginApiRequest extends SyntexaLoginApiRequestBase
+class LoginApiRequest implements SyntexaRequestInterface
 {
 
     use AcmeLoginMarketingTagTrait;
+    use SyntexaLoginApiRequiredFieldsTrait;
     use SyntexaLoginApiTrackingTrait;
 }

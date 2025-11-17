@@ -82,6 +82,7 @@ class RequestWrapperGenerator
                 'attr' => $attr,
                 'file' => $reflection->getFileName() ?: '',
                 'module' => self::detectModule($reflection->getFileName() ?: ''),
+                'interfaces' => $reflection->getInterfaceNames(),
             ];
         }
 
@@ -238,28 +239,6 @@ class RequestWrapperGenerator
     {
         /** @var AsRequest $attr */
         $attr = $target['attr'];
-        $attrParts = [];
-        $attrParts[] = "path: '" . addslashes(EnvValueResolver::resolve($attr->path)) . "'";
-        $attrParts[] = 'methods: ' . self::exportValue(EnvValueResolver::resolve($attr->methods));
-
-        if ($attr->name !== null) {
-            $attrParts[] = "name: '" . addslashes(EnvValueResolver::resolve($attr->name)) . "'";
-        }
-        if (!empty($attr->requirements)) {
-            $attrParts[] = 'requirements: ' . self::exportValue(EnvValueResolver::resolve($attr->requirements));
-        }
-        if (!empty($attr->defaults)) {
-            $attrParts[] = 'defaults: ' . self::exportValue(EnvValueResolver::resolve($attr->defaults));
-        }
-        if (!empty($attr->options)) {
-            $attrParts[] = 'options: ' . self::exportValue(EnvValueResolver::resolve($attr->options));
-        }
-        if (!empty($attr->tags)) {
-            $attrParts[] = 'tags: ' . self::exportValue(EnvValueResolver::resolve($attr->tags));
-        }
-        if ($attr->public === false) {
-            $attrParts[] = 'public: false';
-        }
         $imports = [];
         $usedAliases = [];
 
@@ -270,21 +249,31 @@ class RequestWrapperGenerator
             self::buildVendorAlias($target['class'], 'Base')
         );
 
-        $responseAlias = null;
-        if ($attr->responseWith !== '') {
-            $resolved = EnvValueResolver::resolve($attr->responseWith);
-            $responseFqn = self::resolveResponseWrapperFqn($resolved, $target['module']);
-            $responseAlias = self::registerImport($responseFqn, $imports, $usedAliases);
+        $attrParts = [
+            "of: {$baseAlias}::class",
+        ];
+
+        $responseClass = $target['attr']->responseWith ?? '';
+        if ($responseClass !== '' && $responseClass !== null) {
+            $resolvedResponse = self::resolveResponseWrapperFqn(EnvValueResolver::resolve($responseClass), $target['module']);
+            $responseAlias = self::registerImport($resolvedResponse, $imports, $usedAliases);
             $attrParts[] = "responseWith: {$responseAlias}::class";
         }
 
         $attrString = implode(",\n    ", $attrParts);
+
         $traitAliases = self::registerTraitImports($traits, $imports, $usedAliases);
         $traitLines = array_map(
             static fn ($alias) => '    use ' . $alias . ';',
             array_filter($traitAliases)
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
+
+        $implements = [];
+        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
+            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+        }
+        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Request';
         $className = $target['short'];
@@ -296,13 +285,13 @@ declare(strict_types=1);
 
 PHP;
 
-$useLines = array_map(
-    static fn ($data) => 'use ' . $data['fqn'] . ($data['alias'] !== $data['short'] ? ' as ' . $data['alias'] : '') . ';',
-    $imports
-);
-$useBlock = empty($useLines) ? '' : implode("\n", $useLines) . "\n";
+        $useLines = array_map(
+            static fn ($data) => 'use ' . $data['fqn'] . ($data['alias'] !== $data['short'] ? ' as ' . $data['alias'] : '') . ';',
+            self::uniqueImports($imports)
+        );
+        $useBlock = empty($useLines) ? '' : implode("\n", $useLines) . "\n";
 
-$body = <<<PHP
+        $body = <<<PHP
 namespace {$namespace};
 
 use Syntexa\Core\Attributes\AsRequest;
@@ -311,7 +300,7 @@ use Syntexa\Core\Attributes\AsRequest;
 #[AsRequest(
     {$attrString}
 )]
-class {$className} extends {$baseAlias}
+class {$className}{$implementsString}
 {
 {$traitBlock}}
 
@@ -424,6 +413,21 @@ PHP;
             $vendor = 'Vendor';
         }
         return $vendor . $short . $suffix;
+    }
+
+    private static function uniqueImports(array $imports): array
+    {
+        $seen = [];
+        $result = [];
+        foreach ($imports as $import) {
+            $key = $import['fqn'] . ' as ' . $import['alias'];
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $import;
+        }
+        return $result;
     }
 
     private static function exportValue(mixed $value): string

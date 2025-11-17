@@ -33,14 +33,15 @@ use Attribute;
 class AsRequest
 {
     public function __construct(
-        public string $path,
-        public array $methods = ['GET'],
+        public ?string $of = null,
+        public ?string $responseWith = null,
+        public ?string $path = null,
+        public ?array $methods = null,
         public ?string $name = null,
-        public array $requirements = [],
-        public array $defaults = [],
-        public array $options = [],
-        public array $tags = [],
-        public bool $public = true,
-        public string $responseWith = '',
+        public ?array $requirements = null,
+        public ?array $defaults = null,
+        public ?array $options = null,
+        public ?array $tags = null,
+        public ?bool $public = null,
     ) {}
 }
