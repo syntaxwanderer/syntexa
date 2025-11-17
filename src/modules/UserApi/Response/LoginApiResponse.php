@@ -11,12 +11,13 @@ namespace Syntexa\Modules\UserApi\Response;
 use Syntexa\Core\Attributes\AsResponse;
 use Syntexa\User\Application\Response\LoginApiResponse as SyntexaLoginApiResponseBase;
 use Acme\Marketing\Response\Traits\LoginApiRewardTrait as AcmeLoginApiRewardTrait;
+use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 
 
 #[AsResponse(
     of: SyntexaLoginApiResponseBase::class
 )]
-class LoginApiResponse
+class LoginApiResponse implements SyntexaResponseInterface
 {
 
     use AcmeLoginApiRewardTrait;

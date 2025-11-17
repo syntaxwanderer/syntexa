@@ -10,11 +10,14 @@ namespace Syntexa\Modules\UserFrontend\Request;
 
 use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\UserFrontend\Application\Request\LoginFormRequest as SyntexaLoginFormRequestBase;
+use Syntexa\Modules\UserFrontend\Response\LoginFormResponse as SyntexaLoginFormResponse;
+use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 
 #[AsRequest(
-    of: SyntexaLoginFormRequestBase::class
+    of: SyntexaLoginFormRequestBase::class,
+    responseWith: SyntexaLoginFormResponse::class
 )]
-class LoginFormRequest
+class LoginFormRequest implements SyntexaRequestInterface
 {
 }

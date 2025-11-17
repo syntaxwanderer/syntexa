@@ -253,6 +253,13 @@ class RequestWrapperGenerator
             "of: {$baseAlias}::class",
         ];
 
+        $responseClass = $target['attr']->responseWith ?? null;
+        if ($responseClass) {
+            $resolvedResponse = self::resolveResponseWrapperFqn(EnvValueResolver::resolve($responseClass), $target['module']);
+            $responseAlias = self::registerImport($resolvedResponse, $imports, $usedAliases);
+            $attrParts[] = "responseWith: {$responseAlias}::class";
+        }
+
         $attrString = implode(",\n    ", $attrParts);
 
         $traitAliases = self::registerTraitImports($traits, $imports, $usedAliases);
@@ -261,6 +268,12 @@ class RequestWrapperGenerator
             array_filter($traitAliases)
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
+
+        $implements = [];
+        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
+            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+        }
+        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Request';
         $className = $target['short'];
@@ -287,7 +300,7 @@ use Syntexa\Core\Attributes\AsRequest;
 #[AsRequest(
     {$attrString}
 )]
-class {$className}
+class {$className}{$implementsString}
 {
 {$traitBlock}}
 

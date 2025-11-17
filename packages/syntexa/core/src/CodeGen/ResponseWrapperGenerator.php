@@ -257,6 +257,12 @@ class ResponseWrapperGenerator
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
 
+        $implements = [];
+        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
+            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+        }
+        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
+
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Response';
         $className = $target['short'];
 
@@ -289,7 +295,7 @@ use Syntexa\Core\Attributes\AsResponse;
 #[AsResponse(
     {$attrString}
 )]
-class {$className}
+class {$className}{$implementsString}
 {
 {$traitBlock}}
 
