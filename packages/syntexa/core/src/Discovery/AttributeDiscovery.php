@@ -215,6 +215,38 @@ class AttributeDiscovery
                 }
             }
         }
+
+        // Discover layout overrides (optional)
+        if (class_exists('Syntexa\\Frontend\\Attributes\\AsLayoutOverride') && class_exists('Syntexa\\Frontend\\Layout\\LayoutOverrideRegistry')) {
+            $asLayoutOverride = 'Syntexa\\Frontend\\Attributes\\AsLayoutOverride';
+            $overrideClasses = array_filter(
+                IntelligentAutoloader::findClassesWithAttribute($asLayoutOverride),
+                fn ($class) => str_starts_with($class, 'Syntexa\\')
+            );
+            echo "🔍 Found " . count($overrideClasses) . " layout override classes\n";
+            foreach ($overrideClasses as $className) {
+                try {
+                    $class = new \ReflectionClass($className);
+                    $file = $class->getFileName() ?: '';
+                    // Only process overrides from project src/ (not packages)
+                    $isProjectSrc = (strpos($file, '/src/') !== false) && (strpos($file, '/packages/syntexa/') === false);
+                    if (!$isProjectSrc) {
+                        continue;
+                    }
+                    $attrs = $class->getAttributes($asLayoutOverride);
+                    if (!empty($attrs)) {
+                        $attr = $attrs[0]->newInstance();
+                        $handle = $attr->handle;
+                        $operations = $attr->operations;
+                        $priority = $attr->priority;
+                        \Syntexa\Frontend\Layout\LayoutOverrideRegistry::register($handle, $operations, $priority);
+                        echo "✅ Registered layout override for handle '{$handle}' with " . count($operations) . " operations (priority {$priority})\n";
+                    }
+                } catch (\Throwable $e) {
+                    echo "⚠️  Error analyzing layout override {$className}: " . $e->getMessage() . "\n";
+                }
+            }
+        }
     }
     
     /**

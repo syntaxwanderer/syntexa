@@ -166,24 +166,47 @@ class ModuleRegistry
     private static function discoverVendorModules(string $projectRoot): array
     {
         $modules = [];
-        $vendorPath = $projectRoot . '/vendor';
         
-        if (!is_dir($vendorPath)) {
-            return $modules;
+        // First, check packages/syntexa/ (local development)
+        $packagesPath = $projectRoot . '/packages/syntexa';
+        if (is_dir($packagesPath)) {
+            $syntexaPackages = glob($packagesPath . '/*', GLOB_ONLYDIR);
+            foreach ($syntexaPackages as $dir) {
+                $packageName = basename($dir);
+                // Extract module name from package name (e.g., "module-user-frontend" -> "module-user-frontend")
+                $namespace = "Syntexa\\" . str_replace('-', '', ucwords($packageName, '-'));
+                
+                $modules[] = [
+                    'path' => $dir,
+                    'name' => $packageName,
+                    'namespace' => $namespace
+                ];
+            }
         }
         
-        // Look for Syntexa packages in vendor
-        $syntexaPackages = glob($vendorPath . '/syntexa/*', GLOB_ONLYDIR);
-        
-        foreach ($syntexaPackages as $dir) {
-            $packageName = basename($dir);
-            $namespace = "Syntexa\\" . ucfirst($packageName);
-            
-            $modules[] = [
-                'path' => $dir,
-                'name' => $packageName,
-                'namespace' => $namespace
-            ];
+        // Then, check vendor/syntexa/ (installed packages or symlinks)
+        $vendorPath = $projectRoot . '/vendor';
+        if (is_dir($vendorPath)) {
+            $syntexaPackages = glob($vendorPath . '/syntexa/*', GLOB_ONLYDIR);
+            foreach ($syntexaPackages as $dir) {
+                // Resolve symlink to real path
+                $realPath = is_link($dir) ? readlink($dir) : $dir;
+                if (!str_starts_with($realPath, '/')) {
+                    // Relative symlink
+                    $realPath = dirname($dir) . '/' . $realPath;
+                }
+                // Use real path for module registration
+                $resolvedPath = realpath($realPath) ?: $dir;
+                
+                $packageName = basename($dir);
+                $namespace = "Syntexa\\" . ucfirst($packageName);
+                
+                $modules[] = [
+                    'path' => $resolvedPath,
+                    'name' => $packageName,
+                    'namespace' => $namespace
+                ];
+            }
         }
         
         return $modules;
@@ -235,8 +258,18 @@ class ModuleRegistry
             }
         }
 
+        // Check if module with same path already registered (avoid duplicates from symlinks)
+        $realPath = realpath($path) ?: $path;
+        foreach (self::$modules as $existing) {
+            $existingRealPath = realpath($existing['path']) ?: $existing['path'];
+            if ($existingRealPath === $realPath) {
+                // Module already registered, skip
+                return;
+            }
+        }
+        
         self::$modules[] = [
-            'path' => $path,
+            'path' => $realPath,
             'name' => $name,
             'type' => $type,
             'namespace' => $namespace,
