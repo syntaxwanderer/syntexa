@@ -9,13 +9,16 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserFrontend\Response;
 
 use Syntexa\Core\Attributes\AsResponse;
+use Syntexa\UserFrontend\Application\Response\LoginFormResponse as SyntexaLoginFormResponseBase;
+use Syntexa\UserFrontend\Application\Response\Traits\LoginFormExperienceTrait as SyntexaLoginFormExperienceTrait;
+
 
 #[AsResponse(
     handle: 'login',
     format: \Syntexa\Core\Http\Response\ResponseFormat::Layout
 )]
-class LoginFormResponse extends \Syntexa\UserFrontend\Application\Response\LoginFormResponse
+class LoginFormResponse extends SyntexaLoginFormResponseBase
 {
 
-    use \Syntexa\UserFrontend\Application\Response\Traits\LoginFormExperienceTrait;
+    use SyntexaLoginFormExperienceTrait;
 }

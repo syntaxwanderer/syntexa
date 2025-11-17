@@ -251,14 +251,24 @@ class ResponseWrapperGenerator
             $attrString = "// no AsResponse metadata";
         }
 
+        $imports = [];
+        $usedAliases = [];
+
+        $baseAlias = self::registerImport(
+            $target['class'],
+            $imports,
+            $usedAliases,
+            self::buildVendorAlias($target['class'], 'Base')
+        );
+
+        $traitAliases = self::registerTraitImports($traits, $imports, $usedAliases);
         $traitLines = array_map(
-            static fn ($trait) => '    use ' . $trait . ';',
-            array_filter($traits)
+            static fn ($alias) => '    use ' . $alias . ';',
+            array_filter($traitAliases)
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Response';
-        $baseClass = '\\' . ltrim($target['class'], '\\');
         $className = $target['short'];
 
         $header = <<<'PHP'
@@ -275,21 +285,82 @@ PHP;
 
         $header = sprintf($header, $className);
 
-        $body = <<<PHP
+$useLines = array_map(
+    static fn ($data) => 'use ' . $data['fqn'] . ($data['alias'] !== $data['short'] ? ' as ' . $data['alias'] : '') . ';',
+    $imports
+);
+$useBlock = empty($useLines) ? '' : implode("\n", $useLines) . "\n";
+
+$body = <<<PHP
 namespace {$namespace};
 
 use Syntexa\Core\Attributes\AsResponse;
+{$useBlock}
 
 #[AsResponse(
     {$attrString}
 )]
-class {$className} extends {$baseClass}
+class {$className} extends {$baseAlias}
 {
 {$traitBlock}}
 
 PHP;
 
         return $header . $body;
+    }
+
+    private static function registerImport(string $fqn, array &$imports, array &$used, ?string $preferredAlias = null): string
+    {
+        $fqn = ltrim($fqn, '\\');
+        $hasNamespace = str_contains($fqn, '\\');
+        $pos = strrpos($fqn, '\\');
+        $short = $pos === false ? $fqn : substr($fqn, $pos + 1);
+        $baseAlias = $preferredAlias ?: self::buildVendorAlias($fqn);
+        if ($baseAlias === '') {
+            $baseAlias = $short ?: 'Alias';
+        }
+        $alias = $baseAlias;
+        $counter = 2;
+        while (isset($used[$alias]) && $used[$alias] !== $fqn) {
+            $alias = $baseAlias . $counter;
+            $counter++;
+        }
+        if ($hasNamespace && !isset($used[$alias])) {
+            $imports[] = [
+                'fqn' => $fqn,
+                'short' => $short,
+                'alias' => $alias,
+            ];
+        }
+        $used[$alias] = $fqn;
+        return $alias;
+    }
+
+    private static function registerTraitImports(array $traits, array &$imports, array &$used): array
+    {
+        $aliases = [];
+        $seen = [];
+        foreach ($traits as $trait) {
+            $key = ltrim($trait, '\\');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $aliases[] = self::registerImport($trait, $imports, $used);
+        }
+        return $aliases;
+    }
+
+    private static function buildVendorAlias(string $fqn, string $suffix = ''): string
+    {
+        $parts = explode('\\', ltrim($fqn, '\\'));
+        $vendor = $parts[0] ?? 'Vendor';
+        $short = end($parts) ?: 'Class';
+        $vendor = preg_replace('/[^A-Za-z0-9]/', '', $vendor);
+        if ($vendor === '') {
+            $vendor = 'Vendor';
+        }
+        return $vendor . $short . $suffix;
     }
 
     private static function exportValue(mixed $value): string

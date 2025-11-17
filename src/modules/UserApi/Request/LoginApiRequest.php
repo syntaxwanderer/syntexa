@@ -9,16 +9,21 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserApi\Request;
 
 use Syntexa\Core\Attributes\AsRequest;
+use Syntexa\User\Application\Request\LoginApiRequest as SyntexaLoginApiRequestBase;
+use Syntexa\Modules\UserApi\Response\LoginApiResponse as SyntexaLoginApiResponse;
+use Acme\Marketing\Request\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
+use Syntexa\User\Application\Request\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
+
 
 #[AsRequest(
     path: '/api/login',
     methods: ['POST'],
     name: 'api.login',
-    responseWith: \Syntexa\Modules\UserApi\Response\LoginApiResponse::class
+    responseWith: SyntexaLoginApiResponse::class
 )]
-class LoginApiRequest extends \Syntexa\User\Application\Request\LoginApiRequest
+class LoginApiRequest extends SyntexaLoginApiRequestBase
 {
 
-    use \Syntexa\User\Application\Request\Traits\LoginApiTrackingTrait;
-    use \Acme\Marketing\Request\Traits\LoginMarketingTagTrait;
+    use AcmeLoginMarketingTagTrait;
+    use SyntexaLoginApiTrackingTrait;
 }

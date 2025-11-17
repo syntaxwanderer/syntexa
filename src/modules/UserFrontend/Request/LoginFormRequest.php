@@ -9,13 +9,16 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserFrontend\Request;
 
 use Syntexa\Core\Attributes\AsRequest;
+use Syntexa\UserFrontend\Application\Request\LoginFormRequest as SyntexaLoginFormRequestBase;
+use Syntexa\Modules\UserFrontend\Response\LoginFormResponse as SyntexaLoginFormResponse;
+
 
 #[AsRequest(
     path: '/login',
     methods: ['GET'],
     name: 'login.form',
-    responseWith: \Syntexa\Modules\UserFrontend\Response\LoginFormResponse::class
+    responseWith: SyntexaLoginFormResponse::class
 )]
-class LoginFormRequest extends \Syntexa\UserFrontend\Application\Request\LoginFormRequest
+class LoginFormRequest extends SyntexaLoginFormRequestBase
 {
 }
