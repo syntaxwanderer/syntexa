@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Application\Response;
+namespace Syntexa\UserFrontend\Application\Output;
 
 use Syntexa\Core\Http\Response\GenericResponse;
 use Syntexa\Core\Attributes\AsResponse;

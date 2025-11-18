@@ -8,8 +8,8 @@ use Syntexa\Core\Attributes\AsRequestHandler;
 use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
-use Syntexa\UserFrontend\Application\Request\LoginFormRequest;
-use Syntexa\UserFrontend\Application\Response\LoginFormResponse;
+use Syntexa\UserFrontend\Application\Input\LoginFormRequest;
+use Syntexa\UserFrontend\Application\Output\LoginFormResponse;
 
 #[AsRequestHandler(for: LoginFormRequest::class)]
 class LoginFormHandler implements HttpHandlerInterface

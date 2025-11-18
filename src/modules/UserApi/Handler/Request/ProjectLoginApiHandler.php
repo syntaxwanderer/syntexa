@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserApi\Handler\Request;
 
 use Syntexa\Core\Attributes\AsRequestHandler;
-use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
-use Syntexa\User\Application\Request\LoginApiRequest;
-use Syntexa\User\Application\Response\LoginApiResponse;
+use Syntexa\Core\Handler\HttpHandlerInterface;
+use Syntexa\User\Application\Input\Http\LoginApiRequest;
+use Syntexa\User\Application\Output\Http\LoginApiResponse;
 
 /**
  * Project-specific handler that extends module logic

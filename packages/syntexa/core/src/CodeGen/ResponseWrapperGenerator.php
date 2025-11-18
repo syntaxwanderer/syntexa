@@ -194,7 +194,11 @@ class ResponseWrapperGenerator
         }
 
         preg_match_all('/^\s{4}use\s+\\\\?([\w\\\\]+)\s*;/m', $content, $matches);
-        $traits = $matches[1] ?? [];
+        $rawTraits = $matches[1] ?? [];
+        $traits = array_values(array_filter(
+            $rawTraits,
+            static fn ($trait) => str_contains($trait, '\\')
+        ));
 
         return array_map(
             static fn ($trait) => '\\' . ltrim($trait, '\\'),
@@ -206,7 +210,7 @@ class ResponseWrapperGenerator
     {
         $projectRoot = dirname(__DIR__, 5);
         $moduleStudly = $target['module']['studly'] ?? 'Project';
-        $outputDir = $projectRoot . '/src/modules/' . $moduleStudly . '/Response';
+        $outputDir = $projectRoot . '/src/modules/' . $moduleStudly . '/Output';
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0777, true);
         }
@@ -263,7 +267,7 @@ class ResponseWrapperGenerator
         }
         $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
-        $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Response';
+        $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Output';
         $className = $target['short'];
 
         $header = <<<'PHP'

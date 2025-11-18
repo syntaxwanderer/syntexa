@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\Modules\UserFrontend\Overrides\Response;
+namespace Syntexa\Modules\UserFrontend\Overrides\Output;
 
 use Syntexa\Core\Attributes\AsResponseOverride;
 use Syntexa\Core\Http\Response\ResponseFormat;
-use Syntexa\UserFrontend\Application\Response\LoginFormResponse;
+use Syntexa\UserFrontend\Application\Output\LoginFormResponse;
 
 #[AsResponseOverride(
     of: LoginFormResponse::class,

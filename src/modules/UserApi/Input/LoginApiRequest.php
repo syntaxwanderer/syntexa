@@ -6,15 +6,15 @@ declare(strict_types=1);
  * AUTO-GENERATED FILE.
  * Regenerate via: bin/syntexa request:generate LoginApiRequest
  */
-namespace Syntexa\Modules\UserApi\Request;
+namespace Syntexa\Modules\UserApi\Input;
 
+use Acme\Marketing\Input\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
 use Syntexa\Core\Attributes\AsRequest;
-use Syntexa\User\Application\Request\LoginApiRequest as SyntexaLoginApiRequestBase;
-use Syntexa\Modules\UserApi\Response\LoginApiResponse as SyntexaLoginApiResponse;
-use Acme\Marketing\Request\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
-use Syntexa\User\Application\Request\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
-use Syntexa\User\Application\Request\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
 use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
+use Syntexa\Modules\UserApi\Output\LoginApiResponse as SyntexaLoginApiResponse;
+use Syntexa\User\Application\Input\Http\LoginApiRequest as SyntexaLoginApiRequestBase;
+use Syntexa\User\Application\Input\Http\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
+use Syntexa\User\Application\Input\Http\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
 
 
 #[AsRequest(

@@ -191,7 +191,7 @@ class RequestWrapperGenerator
     {
         $projectRoot = dirname(__DIR__, 5);
         $moduleStudly = $target['module']['studly'] ?? 'Project';
-        $outputDir = $projectRoot . '/src/modules/' . $moduleStudly . '/Request';
+        $outputDir = $projectRoot . '/src/modules/' . $moduleStudly . '/Input';
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0777, true);
         }
@@ -227,7 +227,11 @@ class RequestWrapperGenerator
         }
 
         preg_match_all('/^\s{4}use\s+\\\\?([\w\\\\]+)\s*;/m', $content, $matches);
-        $traits = $matches[1] ?? [];
+        $rawTraits = $matches[1] ?? [];
+        $traits = array_values(array_filter(
+            $rawTraits,
+            static fn ($trait) => str_contains($trait, '\\')
+        ));
 
         return array_map(
             static fn ($trait) => '\\' . ltrim($trait, '\\'),
@@ -275,7 +279,7 @@ class RequestWrapperGenerator
         }
         $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
-        $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Request';
+        $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Input';
         $className = $target['short'];
 
         $header = <<<'PHP'
@@ -353,9 +357,9 @@ PHP;
             ? substr($responseClass, strrpos($responseClass, '\\') + 1)
             : $responseClass;
 
-        $wrapperPath = $projectRoot . '/src/modules/' . $moduleStudly . '/Response/' . $short . '.php';
+        $wrapperPath = $projectRoot . '/src/modules/' . $moduleStudly . '/Output/' . $short . '.php';
         if (is_file($wrapperPath)) {
-            return '\\Syntexa\\Modules\\' . $moduleStudly . '\\Response\\' . $short;
+            return '\\Syntexa\\Modules\\' . $moduleStudly . '\\Output\\' . $short;
         }
 
         return '\\' . ltrim($responseClass, '\\');

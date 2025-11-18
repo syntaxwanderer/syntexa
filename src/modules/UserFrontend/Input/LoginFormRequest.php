@@ -6,11 +6,11 @@ declare(strict_types=1);
  * AUTO-GENERATED FILE.
  * Regenerate via: bin/syntexa request:generate LoginFormRequest
  */
-namespace Syntexa\Modules\UserFrontend\Request;
+namespace Syntexa\Modules\UserFrontend\Input;
 
 use Syntexa\Core\Attributes\AsRequest;
-use Syntexa\UserFrontend\Application\Request\LoginFormRequest as SyntexaLoginFormRequestBase;
-use Syntexa\Modules\UserFrontend\Response\LoginFormResponse as SyntexaLoginFormResponse;
+use Syntexa\UserFrontend\Application\Input\LoginFormRequest as SyntexaLoginFormRequestBase;
+use Syntexa\Modules\UserFrontend\Output\LoginFormResponse as SyntexaLoginFormResponse;
 use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 
