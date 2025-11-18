@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AUTO-GENERATED FROM core-frontend/one-column. Edit freely in src/. -->
+<container template="@core-frontend/frame/one-column.html.twig">
+  <container name="header">
+    <block template="@core-frontend/block/header/default.html.twig" />
+  </container>
+  <container name="breadcrumbs">
+    <block template="@core-frontend/block/breadcrumbs/default.html.twig" />
+  </container>
+  <container name="main" />
+  <container name="footer">
+    <block template="@core-frontend/block/footer/default.html.twig" />
+  </container>
+</container>
+
+

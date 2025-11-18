@@ -10,9 +10,20 @@ class LayoutLoader
 {
     public static function loadHandle(string $handle): ?\SimpleXMLElement
     {
-        $files = self::findLayoutFiles($handle);
+        // Project layout copies (src/modules/*/Layout) act as the canonical source.
+        $projectFile = self::findProjectLayoutFile($handle);
+        if ($projectFile !== null) {
+            $xml = simplexml_load_file($projectFile);
+            if (!$xml) {
+                error_log("Failed to load XML from project layout: {$projectFile}");
+                return null;
+            }
+            return self::resolveExtends($xml, $handle);
+        }
+
+        $files = self::findModuleLayoutFiles($handle);
         if (empty($files)) {
-            error_log("No layout files found for handle '{$handle}'");
+            error_log("No layout files found for handle '{$handle}' (project/src or modules).");
             return null;
         }
 
@@ -31,24 +42,25 @@ class LayoutLoader
             }
         }
 
-        // Support extends="..." at the final stage (child can extend a base)
-        $extends = (string)($baseXml['extends'] ?? '');
+        return self::resolveExtends($baseXml, $handle);
+    }
+
+    private static function resolveExtends(\SimpleXMLElement $xml, string $handle): \SimpleXMLElement
+    {
+        $extends = (string)($xml['extends'] ?? '');
         if ($extends !== '') {
             $parent = self::loadHandle($extends);
             if ($parent) {
-                // When extending, parent is the base, child merges into it
-                // This ensures parent's template and structure are preserved
-                $baseXml = self::mergeContainers($parent, $baseXml);
+                $xml = self::mergeContainers($parent, $xml);
+            } else {
+                error_log("Unable to resolve parent layout '{$extends}' for handle '{$handle}'");
             }
         }
 
-        // Apply layout overrides from AsLayoutOverride attributes (from src/)
-        self::applyLayoutOverrides($baseXml, $handle);
-
-        return $baseXml;
+        return $xml;
     }
 
-    private static function findLayoutFiles(string $handle): array
+    private static function findModuleLayoutFiles(string $handle): array
     {
         $found = [];
         $modules = ModuleRegistry::getModules();
@@ -75,6 +87,38 @@ class LayoutLoader
             error_log("No layout files found for handle '{$handle}'. Searched in " . count($modules) . " modules.");
         }
         return $found;
+    }
+
+    private static function findProjectLayoutFile(string $handle): ?string
+    {
+        $root = self::getProjectRoot();
+        $pattern = $root . '/src/modules/*/Layout/' . $handle . '.xml';
+        $matches = glob($pattern, GLOB_NOSORT) ?: [];
+        if (empty($matches)) {
+            return null;
+        }
+        sort($matches);
+        return $matches[0];
+    }
+
+    private static function getProjectRoot(): string
+    {
+        static $root = null;
+        if ($root !== null) {
+            return $root;
+        }
+
+        $dir = __DIR__;
+        while ($dir !== '/' && !is_file($dir . '/composer.json')) {
+            $parent = dirname($dir);
+            if ($parent === $dir) {
+                break;
+            }
+            $dir = $parent;
+        }
+
+        $root = $dir;
+        return $root;
     }
 
     private static function mergeContainers(\SimpleXMLElement $base, \SimpleXMLElement $child): \SimpleXMLElement
@@ -233,99 +277,6 @@ class LayoutLoader
         return null;
     }
 
-    /**
-     * Apply layout overrides registered via AsLayoutOverride attributes.
-     * Operations are applied in order: remove, move, add.
-     */
-    private static function applyLayoutOverrides(\SimpleXMLElement $xml, string $handle): void
-    {
-        if (!class_exists('Syntexa\\Frontend\\Layout\\LayoutOverrideRegistry')) {
-            return;
-        }
-        
-        $overrides = \Syntexa\Frontend\Layout\LayoutOverrideRegistry::getOverrides($handle);
-        if (empty($overrides)) {
-            return;
-        }
-
-        foreach ($overrides as $override) {
-            foreach ($override['operations'] as $op) {
-                $type = $op['type'] ?? '';
-                
-                if ($type === 'remove' && isset($op['name'])) {
-                    self::removeNodeByName($xml, (string)$op['name']);
-                } elseif ($type === 'move' && isset($op['name']) && isset($op['into'])) {
-                    self::moveNode(
-                        $xml,
-                        (string)$op['name'],
-                        (string)$op['into'],
-                        (string)($op['before'] ?? ''),
-                        (string)($op['after'] ?? '')
-                    );
-                } elseif ($type === 'add' && isset($op['block']) && isset($op['into'])) {
-                    self::addBlockFromArray($xml, $op['block'], (string)$op['into'], (string)($op['before'] ?? ''), (string)($op['after'] ?? ''));
-                }
-            }
-        }
-    }
-
-    /**
-     * Add a block to the layout from an array definition.
-     * 
-     * @param array<string, mixed> $blockDef Block definition with 'name', 'template', 'args', etc.
-     */
-    private static function addBlockFromArray(\SimpleXMLElement $root, array $blockDef, string $into, string $before = '', string $after = ''): void
-    {
-        $container = self::findContainerByName($root, $into);
-        if (!$container) {
-            // If container doesn't exist, create it
-            $container = $root->addChild('container');
-            $container->addAttribute('name', $into);
-        }
-
-        // Create the block XML structure first
-        $blockXml = '<block';
-        if (isset($blockDef['name'])) {
-            $blockXml .= ' name="' . htmlspecialchars((string)$blockDef['name'], ENT_XML1) . '"';
-        }
-        if (isset($blockDef['template'])) {
-            $blockXml .= ' template="' . htmlspecialchars((string)$blockDef['template'], ENT_XML1) . '"';
-        }
-        if (isset($blockDef['handle'])) {
-            $blockXml .= ' handle="' . htmlspecialchars((string)$blockDef['handle'], ENT_XML1) . '"';
-        }
-        $blockXml .= '>';
-        
-        // Add arguments
-        if (isset($blockDef['args']) && is_array($blockDef['args'])) {
-            foreach ($blockDef['args'] as $argName => $argValue) {
-                $blockXml .= '<arg name="' . htmlspecialchars((string)$argName, ENT_XML1) . '">' 
-                    . htmlspecialchars((string)$argValue, ENT_XML1) . '</arg>';
-            }
-        }
-        $blockXml .= '</block>';
-        
-        $newBlock = new \SimpleXMLElement($blockXml);
-        
-        // Handle positioning: find reference block if before/after specified
-        if ($before !== '' || $after !== '') {
-            $refName = $before !== '' ? $before : $after;
-            $refBlock = self::findBlockByName($container, $refName);
-            
-            if ($refBlock) {
-                // Insert before or after the reference block
-                // SimpleXML doesn't support direct insertion, so we'll append for now
-                // Proper positioning would require rebuilding the XML tree
-                self::appendNode($container, $newBlock);
-            } else {
-                // Reference block not found, append at end
-                self::appendNode($container, $newBlock);
-            }
-        } else {
-            // No positioning specified, append at end
-            self::appendNode($container, $newBlock);
-        }
-    }
 }
 
 

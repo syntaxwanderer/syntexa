@@ -101,8 +101,9 @@ Commands:
   stop            Stop all PHP processes listening on SWOOLE_PORT (default 9501)
   restart         Stop then start server on SWOOLE_PORT
   watch           Watch filesystem changes and auto-restart (requires entr or inotifywait)
-  request:generate [Request]  Build/refresh request wrapper(s)
+  request:generate [Request]   Build/refresh request wrapper(s)
   response:generate [Response] Build/refresh response wrapper(s)
+  layout:generate [Layout]     Copy module layouts into src/
   help            Show this help
 
 Examples:
@@ -124,6 +125,10 @@ case "${CMD}" in
   response:generate)
     shift
     php "${ROOT_DIR}/tools/response-generator.php" "$@"
+    ;;
+  layout:generate)
+    shift
+    php "${ROOT_DIR}/tools/layout-generator.php" "$@"
     ;;
   help|-h|--help) help ;;
   *) help ; exit 2 ;;
