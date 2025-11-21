@@ -208,14 +208,31 @@ class IntelligentAutoloader
      */
     public static function findClassesWithAttribute(string $attributeClass): array
     {
+        // Ensure autoloader is initialized
+        if (!self::$initialized) {
+            self::initialize();
+        }
+        
         $classes = [];
+        $classMapSize = count(self::$classMap);
         
         foreach (self::$classMap as $className => $filePath) {
+            // Load class if not already loaded
+            if (!class_exists($className) && !interface_exists($className) && !trait_exists($className)) {
+                if (file_exists($filePath)) {
+                    require_once $filePath;
+                }
+            }
+            
             if (class_exists($className) || interface_exists($className) || trait_exists($className)) {
-                $reflection = new \ReflectionClass($className);
-                
-                if ($reflection->getAttributes($attributeClass)) {
-                    $classes[] = $className;
+                try {
+                    $reflection = new \ReflectionClass($className);
+                    
+                    if ($reflection->getAttributes($attributeClass)) {
+                        $classes[] = $className;
+                    }
+                } catch (\Throwable $e) {
+                    // Skip classes that can't be reflected
                 }
             }
         }

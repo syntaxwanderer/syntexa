@@ -9,13 +9,15 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserFrontend\Output;
 
 use Syntexa\Core\Attributes\AsResponse;
+use Syntexa\Core\Http\Response\ResponseFormat;
 use Syntexa\UserFrontend\Application\Output\LoginFormResponse as SyntexaLoginFormResponseBase;
 use Syntexa\UserFrontend\Application\Output\Traits\LoginFormExperienceTrait as SyntexaLoginFormExperienceTrait;
 use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 
 
 #[AsResponse(
-    base: SyntexaLoginFormResponseBase::class
+    base: SyntexaLoginFormResponseBase::class,
+    context: ['title' => 'Sign in']
 )]
 class LoginFormResponse implements SyntexaResponseInterface
 {
