@@ -11,7 +11,7 @@ namespace Syntexa\Modules\UserApi\Input;
 use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\User\Application\Input\Http\LoginApiRequest as SyntexaLoginApiRequestBase;
 use Syntexa\User\Application\Output\Http\LoginApiResponse as SyntexaLoginApiResponse;
-use Acme\Marketing\Input\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
+use Acme\Marketing\Application\Input\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
 use Syntexa\User\Application\Input\Http\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
 use Syntexa\User\Application\Input\Http\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
 use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;

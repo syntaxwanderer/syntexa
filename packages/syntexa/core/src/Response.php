@@ -38,7 +38,7 @@ readonly class Response
         return new self(
             content: $content,
             statusCode: $statusCode,
-            headers: ['Content-Type' => 'text/html']
+            headers: ['Content-Type' => 'text/html; charset=utf-8']
         );
     }
     

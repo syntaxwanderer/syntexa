@@ -252,28 +252,6 @@ class AttributeDiscovery
             }
         }
 
-        // Discover frontend block handlers (optional)
-        if (class_exists('Syntexa\\Frontend\\Attributes\\AsBlockHandler') && class_exists('Syntexa\\Frontend\\Layout\\BlockHandlerRegistry')) {
-            $asBlockHandler = 'Syntexa\\Frontend\\Attributes\\AsBlockHandler';
-            $blockHandlerClasses = IntelligentAutoloader::findClassesWithAttribute($asBlockHandler);
-            echo "🔍 Found " . count($blockHandlerClasses) . " block handler classes\n";
-            foreach ($blockHandlerClasses as $className) {
-                try {
-                    $class = new \ReflectionClass($className);
-                    $attrs = $class->getAttributes($asBlockHandler);
-                    if (!empty($attrs)) {
-                        $attr = $attrs[0]->newInstance();
-                        $for = $attr->getFor();
-                        $prio = $attr->getPriority();
-                        \Syntexa\Frontend\Layout\BlockHandlerRegistry::register($for, $class->getName(), $prio);
-                        echo "✅ Registered block handler {$class->getName()} for {$for} (priority {$prio})\n";
-                    }
-                } catch (\Throwable $e) {
-                    echo "⚠️  Error analyzing block handler {$className}: " . $e->getMessage() . "\n";
-                }
-            }
-        }
-
         // Discover layout slot contributions (optional)
         if (
             class_exists('Syntexa\\Frontend\\Attributes\\AsLayoutSlot')

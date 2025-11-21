@@ -191,7 +191,7 @@ class Application
                                     $resDto->setContent($html);
                                 }
                                 if (method_exists($resDto, 'setHeader')) {
-                                    $resDto->setHeader('Content-Type', 'text/html; charset=UTF-8');
+                                    $resDto->setHeader('Content-Type', 'text/html; charset=utf-8');
                                 }
                             }
                         } else {

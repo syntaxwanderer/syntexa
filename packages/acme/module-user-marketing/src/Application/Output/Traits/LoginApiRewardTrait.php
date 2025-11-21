@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Acme\Marketing\Output\Traits;
+namespace Acme\Marketing\Application\Output\Traits;
 
 use Syntexa\Core\Attributes\AsResponsePart;
 use Syntexa\User\Application\Output\Http\LoginApiResponse;

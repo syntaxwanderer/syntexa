@@ -22,7 +22,7 @@ class ErrorRenderer
                 . '<h1>Internal Server Error</h1>'
                 . '<p>' . htmlspecialchars($e->getMessage()) . '</p>'
                 . '</div></body></html>';
-            return new Response($html, 500, ['Content-Type' => 'text/html; charset=UTF-8']);
+            return new Response($html, 500, ['Content-Type' => 'text/html; charset=utf-8']);
         }
         return Response::json([
             'error' => 'Internal Server Error',

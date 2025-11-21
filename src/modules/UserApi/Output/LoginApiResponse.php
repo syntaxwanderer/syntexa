@@ -10,7 +10,7 @@ namespace Syntexa\Modules\UserApi\Output;
 
 use Syntexa\Core\Attributes\AsResponse;
 use Syntexa\User\Application\Output\Http\LoginApiResponse as SyntexaLoginApiResponseBase;
-use Acme\Marketing\Output\Traits\LoginApiRewardTrait as AcmeLoginApiRewardTrait;
+use Acme\Marketing\Application\Output\Traits\LoginApiRewardTrait as AcmeLoginApiRewardTrait;
 use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 
 
