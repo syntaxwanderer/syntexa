@@ -149,11 +149,11 @@ class AttributeDiscovery
                         'tags' => EnvValueResolver::resolve($attr->tags),
                         'public' => $attr->public,
                         'responseWith' => $attr->responseWith !== null ? EnvValueResolver::resolve($attr->responseWith) : null,
-                        'of' => $attr->of ? ltrim($attr->of, '\\') : null,
+                        'base' => $attr->base ? ltrim($attr->base, '\\') : null,
                     ],
                 ];
                 $requestMeta[$className] = $meta;
-                $groupKey = $meta['attr']['of'] ?? $className;
+                $groupKey = $meta['attr']['base'] ?? $className;
                 $requestGroups[$groupKey][] = $meta;
             } catch (\Throwable $e) {
                 echo "⚠️  Error analyzing request {$className}: " . $e->getMessage() . "\n";
@@ -276,8 +276,8 @@ class AttributeDiscovery
         }
         $meta = $metaMap[$className];
         $attr = $meta['attr'];
-        if (!empty($attr['of'])) {
-            $baseAttr = self::resolveRequestAttributes($attr['of'], $metaMap, $cache);
+        if (!empty($attr['base'])) {
+            $baseAttr = self::resolveRequestAttributes($attr['base'], $metaMap, $cache);
             $merged = self::mergeRequestAttributes($baseAttr, $attr);
         } else {
             $merged = self::applyRequestDefaults($attr, $meta['short'], $className);
@@ -349,11 +349,11 @@ class AttributeDiscovery
                         'format' => $attr->format,
                         'renderer' => $attr->renderer !== null ? EnvValueResolver::resolve($attr->renderer) : null,
                         'context' => $attr->context ?? [],
-                        'of' => $attr->of ? ltrim($attr->of, '\\') : null,
+                        'base' => $attr->base ? ltrim($attr->base, '\\') : null,
                     ],
                 ];
                 $responseMeta[$className] = $meta;
-                $groupKey = $meta['attr']['of'] ?? $className;
+                $groupKey = $meta['attr']['base'] ?? $className;
                 $responseGroups[$groupKey][] = $meta;
             } catch (\Throwable $e) {
                 echo "⚠️  Error analyzing response {$className}: " . $e->getMessage() . "\n";
@@ -389,8 +389,8 @@ class AttributeDiscovery
         }
         $meta = $metaMap[$className];
         $attr = $meta['attr'];
-        if (!empty($attr['of'])) {
-            $baseAttr = self::resolveResponseAttributes($attr['of'], $metaMap, $cache);
+        if (!empty($attr['base'])) {
+            $baseAttr = self::resolveResponseAttributes($attr['base'], $metaMap, $cache);
             $merged = self::mergeResponseAttributes($baseAttr, $attr);
         } else {
             $merged = self::applyResponseDefaults($attr, $meta['short'], $className);

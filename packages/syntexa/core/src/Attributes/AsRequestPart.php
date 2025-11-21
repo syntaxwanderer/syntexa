@@ -19,7 +19,7 @@ class AsRequestPart
         /**
          * Fully-qualified class name of the base request that this part targets.
          */
-        public string $of
+        public string $base
     ) {
     }
 }

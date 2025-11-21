@@ -11,7 +11,7 @@ use Attribute;
 class AsResponse
 {
     public function __construct(
-        public ?string $of = null,
+        public ?string $base = null,
         public ?string $handle = null,
         public ?array $context = null,
         public ?ResponseFormat $format = null,

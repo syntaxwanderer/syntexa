@@ -104,7 +104,7 @@ class ResponseWrapperGenerator
             foreach ($attributes as $attribute) {
                 /** @var AsResponsePart $meta */
                 $meta = $attribute->newInstance();
-                if ($meta->of === $baseClass) {
+                if ($meta->base === $baseClass) {
                     $parts[] = [
                         'trait' => $className,
                         'file' => $reflection->getFileName() ?: '',
@@ -249,7 +249,7 @@ class ResponseWrapperGenerator
         );
 
         $attrParts = [
-            "of: {$baseAlias}::class",
+            "base: {$baseAlias}::class",
         ];
 
         $attrString = implode(",\n    ", $attrParts);

@@ -15,7 +15,7 @@ use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 
 
 #[AsResponse(
-    of: SyntexaLoginFormResponseBase::class
+    base: SyntexaLoginFormResponseBase::class
 )]
 class LoginFormResponse implements SyntexaResponseInterface
 {

@@ -109,7 +109,7 @@ class RequestWrapperGenerator
             foreach ($attributes as $attribute) {
                 /** @var AsRequestPart $meta */
                 $meta = $attribute->newInstance();
-                if ($meta->of === $baseClass) {
+                if ($meta->base === $baseClass) {
                     $parts[] = [
                         'trait' => $className,
                         'file' => $reflection->getFileName() ?: '',
@@ -254,7 +254,7 @@ class RequestWrapperGenerator
         );
 
         $attrParts = [
-            "of: {$baseAlias}::class",
+            "base: {$baseAlias}::class",
         ];
 
         $responseClass = $target['attr']->responseWith ?? null;

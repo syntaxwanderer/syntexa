@@ -7,7 +7,7 @@ namespace Syntexa\User\Application\Input\Http\Traits;
 use Syntexa\Core\Attributes\AsRequestPart;
 use Syntexa\User\Application\Input\Http\LoginApiRequest;
 
-#[AsRequestPart(of: LoginApiRequest::class)]
+#[AsRequestPart(base: LoginApiRequest::class)]
 trait LoginApiRequiredFieldsTrait
 {
     public int $id;

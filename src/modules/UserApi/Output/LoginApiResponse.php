@@ -8,14 +8,14 @@ declare(strict_types=1);
  */
 namespace Syntexa\Modules\UserApi\Output;
 
-use Acme\Marketing\Output\Traits\LoginApiRewardTrait as AcmeLoginApiRewardTrait;
 use Syntexa\Core\Attributes\AsResponse;
-use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 use Syntexa\User\Application\Output\Http\LoginApiResponse as SyntexaLoginApiResponseBase;
+use Acme\Marketing\Output\Traits\LoginApiRewardTrait as AcmeLoginApiRewardTrait;
+use Syntexa\Core\Contract\ResponseInterface as SyntexaResponseInterface;
 
 
 #[AsResponse(
-    of: SyntexaLoginApiResponseBase::class
+    base: SyntexaLoginApiResponseBase::class
 )]
 class LoginApiResponse implements SyntexaResponseInterface
 {

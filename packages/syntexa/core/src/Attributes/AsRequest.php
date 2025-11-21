@@ -33,7 +33,7 @@ use Attribute;
 class AsRequest
 {
     public function __construct(
-        public ?string $of = null,
+        public ?string $base = null,
         public ?string $responseWith = null,
         public ?string $path = null,
         public ?array $methods = null,

@@ -19,7 +19,7 @@ class AsResponsePart
         /**
          * Fully-qualified class name of the base response that this part targets.
          */
-        public string $of
+        public string $base
     ) {
     }
 }
