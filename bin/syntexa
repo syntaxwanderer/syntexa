@@ -104,6 +104,7 @@ Commands:
   request:generate [Request]   Build/refresh request wrapper(s)
   response:generate [Response] Build/refresh response wrapper(s)
   layout:generate [Layout]     Copy module layouts into src/
+  queue:work [transport] [queue]  Run async handler worker
   help            Show this help
 
 Examples:
@@ -129,6 +130,10 @@ case "${CMD}" in
   layout:generate)
     shift
     php "${ROOT_DIR}/tools/layout-generator.php" "$@"
+    ;;
+  queue:work)
+    shift
+    php "${ROOT_DIR}/tools/queue-worker.php" "$@"
     ;;
   help|-h|--help) help ;;
   *) help ; exit 2 ;;

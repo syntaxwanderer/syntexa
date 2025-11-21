@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Syntexa\Core;
 
 use Syntexa\Core\Discovery\AttributeDiscovery;
+use Syntexa\Core\Queue\HandlerExecution;
+use Syntexa\Core\Queue\QueueDispatcher;
 
 /**
  * Minimal Syntexa Application
@@ -132,7 +134,22 @@ class Application
                 }
 
                 // Execute handlers in order
-                foreach ($handlerClasses as $handlerClass) {
+                foreach ($handlerClasses as $handlerMeta) {
+                    $handlerClass = is_array($handlerMeta) ? ($handlerMeta['class'] ?? null) : $handlerMeta;
+                    if (!$handlerClass) {
+                        continue;
+                    }
+
+                    $execution = $handlerMeta['execution'] ?? HandlerExecution::Sync->value;
+                    if ($execution === HandlerExecution::Async->value) {
+                        QueueDispatcher::enqueue(
+                            is_array($handlerMeta) ? $handlerMeta : ['class' => $handlerClass, 'for' => $requestClass],
+                            $reqDto,
+                            $resDto
+                        );
+                        continue;
+                    }
+
                     echo "🔄 Executing handler: {$handlerClass}\n";
                     if (!class_exists($handlerClass)) {
                         echo "⚠️  Handler class not found: {$handlerClass}\n";

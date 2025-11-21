@@ -10,6 +10,7 @@ use Syntexa\Core\Attributes\AsResponseOverride;
 use Syntexa\Core\Config\EnvValueResolver;
 use Syntexa\Core\ModuleRegistry;
 use Syntexa\Core\IntelligentAutoloader;
+use Syntexa\Core\Queue\HandlerExecution;
 use ReflectionClass;
 
 /**
@@ -221,17 +222,26 @@ class AttributeDiscovery
                 if (!empty($attrs)) {
                     /** @var AsRequestHandler $attr */
                     $attr = $attrs[0]->newInstance();
-                    $for = $attr->getFor();
+                    $for = $attr->for;
                     if (isset(self::$requestClassAliases[$for])) {
                         $for = self::$requestClassAliases[$for];
                     }
-                    echo "🔗 Handler: {$class->getName()} -> for: {$for}\n";
-                    self::$httpHandlers[$class->getName()] = [
-                        'handlerClass' => $class->getName(),
+                    $execution = HandlerExecution::normalize($attr->execution ?? null);
+                    $transport = $attr->transport !== null ? EnvValueResolver::resolve($attr->transport) : null;
+                    $queue = $attr->queue !== null ? EnvValueResolver::resolve($attr->queue) : null;
+                    $priority = $attr->priority ?? 0;
+                    $handlerMeta = [
+                        'class' => $class->getName(),
                         'for' => $for,
+                        'execution' => $execution->value,
+                        'transport' => $transport ?: null,
+                        'queue' => $queue ?: null,
+                        'priority' => $priority,
                     ];
+                    echo "🔗 Handler: {$class->getName()} -> for: {$for} ({$handlerMeta['execution']})\n";
+                    self::$httpHandlers[$class->getName()] = $handlerMeta;
                     if (isset(self::$httpRequests[$for])) {
-                        self::$httpRequests[$for]['handlers'][] = $class->getName();
+                        self::$httpRequests[$for]['handlers'][] = $handlerMeta;
                         echo "✅ Mapped handler {$class->getName()} to request {$for}\n";
                     } else {
                         echo "⚠️  Request class not found for handler: {$for}\n";
