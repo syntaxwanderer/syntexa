@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Syntexa\Core;
 
+use Syntexa\Core\Contract\ResponseInterface;
+
 /**
  * HTTP Response representation
  */
-readonly class Response
+readonly class Response implements ResponseInterface
 {
     public function __construct(
         public string $content,
@@ -48,6 +50,15 @@ readonly class Response
             'error' => 'Not Found',
             'message' => $message
         ], 404);
+    }
+    
+    public static function redirect(string $url, int $statusCode = 302): self
+    {
+        return new self(
+            content: '',
+            statusCode: $statusCode,
+            headers: ['Location' => $url]
+        );
     }
     
     public function getContent(): string

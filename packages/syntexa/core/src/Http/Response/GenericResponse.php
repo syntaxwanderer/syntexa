@@ -67,6 +67,22 @@ class GenericResponse implements ContractResponse
         return $this->renderContext;
     }
 
+    /**
+     * Alias for setRenderContext for convenience
+     */
+    public function setContext(array $context): self
+    {
+        return $this->setRenderContext($context);
+    }
+
+    /**
+     * Alias for getRenderContext for convenience
+     */
+    public function getContext(): array
+    {
+        return $this->getRenderContext();
+    }
+
     public function setRenderFormat(?\Syntexa\Core\Http\Response\ResponseFormat $format): self
     {
         $this->renderFormat = $format;

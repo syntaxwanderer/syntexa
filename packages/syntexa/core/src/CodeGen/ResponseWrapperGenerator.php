@@ -261,28 +261,45 @@ class ResponseWrapperGenerator
         );
         $traitBlock = empty($traitLines) ? '' : "\n" . implode("\n", $traitLines) . "\n";
 
+        // Check if base class implements interfaces - if so, don't duplicate them in wrapper
+        $baseClass = $target['class'];
+        $baseInterfaces = [];
+        try {
+            $baseReflection = new ReflectionClass($baseClass);
+            $baseInterfaces = $baseReflection->getInterfaceNames();
+        } catch (\Throwable $e) {
+            // Ignore if base class can't be reflected
+        }
+
         $implements = [];
         foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
-            $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+            // Only add interface if base class doesn't already implement it
+            if (!in_array($interfaceFqn, $baseInterfaces, true)) {
+                $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+            }
         }
         $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
+        // Wrapper extends base class to inherit all methods
+        $extendsString = "extends {$baseAlias}";
+
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Output';
         $className = $target['short'];
+
+        $comment = <<<PHP
+/**
+ * AUTO-GENERATED FILE.
+ * Regenerate via: bin/syntexa response:generate {$className}
+ */
+
+PHP;
 
         $header = <<<'PHP'
 <?php
 
 declare(strict_types=1);
 
-/**
- * AUTO-GENERATED FILE.
- * Regenerate via: bin/syntexa response:generate %s
- */
-
 PHP;
-
-        $header = sprintf($header, $className);
 
 $useLines = array_map(
     static fn ($data) => 'use ' . $data['fqn'] . ($data['alias'] !== $data['short'] ? ' as ' . $data['alias'] : '') . ';',
@@ -295,11 +312,11 @@ namespace {$namespace};
 
 use Syntexa\Core\Attributes\AsResponse;
 {$useBlock}
-
+{$comment}
 #[AsResponse(
     {$attrString}
 )]
-class {$className}{$implementsString}
+class {$className} {$extendsString}{$implementsString}
 {
 {$traitBlock}}
 

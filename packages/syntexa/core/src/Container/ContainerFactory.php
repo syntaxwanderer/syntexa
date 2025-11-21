@@ -89,6 +89,12 @@ class ContainerFactory
             return new \Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService();
         });
 
+        // User repository - singleton (file-based storage)
+        $definitions[\Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface::class] = \DI\create(\Syntexa\UserFrontend\Domain\Repository\UserRepository::class);
+
+        // Auth service - request-scoped
+        $definitions[\Syntexa\UserFrontend\Domain\Service\AuthService::class] = \DI\autowire();
+
         // Handlers with property injection - use autowire to enable property injection
         $definitions[\Syntexa\UserFrontend\Application\Handler\Request\LoginFormHandler::class] = \DI\autowire();
 

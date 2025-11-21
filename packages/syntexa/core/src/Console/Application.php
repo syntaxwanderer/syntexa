@@ -12,6 +12,7 @@ use Syntexa\Core\Console\Command\RequestGenerateCommand;
 use Syntexa\Core\Console\Command\ResponseGenerateCommand;
 use Syntexa\Core\Console\Command\LayoutGenerateCommand;
 use Syntexa\Core\Console\Command\QueueWorkCommand;
+use Syntexa\Core\Console\Command\UserCreateCommand;
 
 class Application extends SymfonyApplication
 {
@@ -27,6 +28,7 @@ class Application extends SymfonyApplication
             new ResponseGenerateCommand(),
             new LayoutGenerateCommand(),
             new QueueWorkCommand(),
+            new UserCreateCommand(),
         ]);
     }
 }

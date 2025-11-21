@@ -94,6 +94,10 @@ class Application
                 // Hydrate Request DTO from HTTP Request data
                 try {
                     $reqDto = \Syntexa\Core\Http\RequestDtoHydrator::hydrate($reqDto, $request);
+                    // Allow DTO to access HTTP Request if it has setHttpRequest method
+                    if (method_exists($reqDto, 'setHttpRequest')) {
+                        $reqDto->setHttpRequest($request);
+                    }
                     echo "✅ Hydrated Request DTO: {$requestClass}\n";
                 } catch (\Throwable $e) {
                     echo "⚠️  Error hydrating Request DTO: " . $e->getMessage() . "\n";
@@ -112,7 +116,7 @@ class Application
                 if ($resDto) {
                     $resolvedResponse = \Syntexa\Core\Discovery\AttributeDiscovery::getResolvedResponseAttributes(get_class($resDto));
                     if ($resolvedResponse) {
-                        if (isset($resolvedResponse['handle']) && method_exists($resDto, 'setRenderHandle')) {
+                        if (isset($resolvedResponse['handle']) && $resolvedResponse['handle'] && method_exists($resDto, 'setRenderHandle')) {
                             $resDto->setRenderHandle($resolvedResponse['handle']);
                         }
                         if (isset($resolvedResponse['context']) && method_exists($resDto, 'setRenderContext')) {
@@ -124,23 +128,41 @@ class Application
                         if (isset($resolvedResponse['renderer']) && method_exists($resDto, 'setRendererClass')) {
                             $resDto->setRendererClass($resolvedResponse['renderer']);
                         }
-                    } else {
+                    }
+                    // Fallback: try to read attribute directly (for cases where getResolvedResponseAttributes returns null)
+                    if (!method_exists($resDto, 'getRenderHandle') || !$resDto->getRenderHandle()) {
                         try {
                             $r = new \ReflectionClass($resDto);
                             $attrs = $r->getAttributes('Syntexa\\Core\\Attributes\\AsResponse');
                             if (!empty($attrs)) {
                                 $a = $attrs[0]->newInstance();
-                                if (method_exists($resDto, 'setRenderHandle')) {
-                                    $resDto->setRenderHandle($a->handle ?? '');
+                                if (method_exists($resDto, 'setRenderHandle') && $a->handle) {
+                                    $resDto->setRenderHandle($a->handle);
                                 }
                                 if (method_exists($resDto, 'setRenderContext') && isset($a->context)) {
                                     $resDto->setRenderContext($a->context);
                                 }
-                                if (method_exists($resDto, 'setRenderFormat')) {
-                                    $resDto->setRenderFormat($a->format ?? null);
+                                if (method_exists($resDto, 'setRenderFormat') && $a->format) {
+                                    $resDto->setRenderFormat($a->format);
                                 }
-                                if (method_exists($resDto, 'setRendererClass')) {
-                                    $resDto->setRendererClass($a->renderer ?? null);
+                                if (method_exists($resDto, 'setRendererClass') && $a->renderer) {
+                                    $resDto->setRendererClass($a->renderer);
+                                }
+                            }
+                            // If still no handle, try parent class
+                            if (!method_exists($resDto, 'getRenderHandle') || !$resDto->getRenderHandle()) {
+                                $parent = $r->getParentClass();
+                                if ($parent) {
+                                    $parentAttrs = $parent->getAttributes('Syntexa\\Core\\Attributes\\AsResponse');
+                                    if (!empty($parentAttrs)) {
+                                        $parentAttr = $parentAttrs[0]->newInstance();
+                                        if (method_exists($resDto, 'setRenderHandle') && $parentAttr->handle) {
+                                            $resDto->setRenderHandle($parentAttr->handle);
+                                        }
+                                        if (method_exists($resDto, 'setRenderFormat') && $parentAttr->format) {
+                                            $resDto->setRenderFormat($parentAttr->format);
+                                        }
+                                    }
                                 }
                             }
                         } catch (\Throwable $e) {
@@ -227,10 +249,18 @@ class Application
                 }
 
                 // Adapt to core Response
+                // If handler returned a Core Response directly, use it
+                if ($resDto instanceof \Syntexa\Core\Response) {
+                    echo "✅ Handler returned Core Response directly\n";
+                    return $resDto;
+                }
+                
+                // If response DTO has toCoreResponse method, use it
                 if (method_exists($resDto, 'toCoreResponse')) {
                     echo "✅ Converting to Core Response\n";
                     return $resDto->toCoreResponse();
                 }
+                
                 // Generic fallback
                 echo "⚠️  Using generic JSON fallback\n";
                 return Response::json(['ok' => true]);

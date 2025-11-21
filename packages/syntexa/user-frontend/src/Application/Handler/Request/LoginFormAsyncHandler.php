@@ -9,7 +9,7 @@ use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Queue\HandlerExecution;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
-use Syntexa\UserFrontend\Application\Input\LoginFormRequest;
+use Syntexa\UserFrontend\Application\Input\Http\LoginFormRequest;
 use Syntexa\UserFrontend\Application\Output\LoginFormResponse;
 
 #[AsRequestHandler(
