@@ -26,8 +26,18 @@ class ResponseGenerateCommand extends BaseCommand
         $response = $input->getArgument('response');
         $all = $input->getOption('all');
 
-        $rootDir = $this->getProjectRoot();
-        require $rootDir . '/tools/response-generator.php';
+        try {
+            if ($all || $response === null) {
+                \Syntexa\Core\CodeGen\ResponseWrapperGenerator::generateAll();
+                $io->success('Generated all response wrappers');
+            } else {
+                \Syntexa\Core\CodeGen\ResponseWrapperGenerator::generate($response);
+                $io->success("Generated response wrapper for: {$response}");
+            }
+        } catch (\Throwable $e) {
+            $io->error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }

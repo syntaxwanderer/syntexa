@@ -26,8 +26,18 @@ class RequestGenerateCommand extends BaseCommand
         $request = $input->getArgument('request');
         $all = $input->getOption('all');
 
-        $rootDir = $this->getProjectRoot();
-        require $rootDir . '/tools/request-generator.php';
+        try {
+            if ($all || $request === null) {
+                \Syntexa\Core\CodeGen\RequestWrapperGenerator::generateAll();
+                $io->success('Generated all request wrappers');
+            } else {
+                \Syntexa\Core\CodeGen\RequestWrapperGenerator::generate($request);
+                $io->success("Generated request wrapper for: {$request}");
+            }
+        } catch (\Throwable $e) {
+            $io->error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }

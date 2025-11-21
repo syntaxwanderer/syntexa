@@ -26,8 +26,18 @@ class LayoutGenerateCommand extends BaseCommand
         $layout = $input->getArgument('layout');
         $all = $input->getOption('all');
 
-        $rootDir = $this->getProjectRoot();
-        require $rootDir . '/tools/layout-generator.php';
+        try {
+            if ($all || $layout === null) {
+                \Syntexa\Core\CodeGen\LayoutGenerator::generateAll();
+                $io->success('Generated all layouts');
+            } else {
+                \Syntexa\Core\CodeGen\LayoutGenerator::generate($layout);
+                $io->success("Generated layout for: {$layout}");
+            }
+        } catch (\Throwable $e) {
+            $io->error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }

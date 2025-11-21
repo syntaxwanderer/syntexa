@@ -11,7 +11,7 @@ use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
 use Syntexa\UserFrontend\Application\Input\LoginFormRequest;
 use Syntexa\UserFrontend\Application\Output\LoginFormResponse;
-use Syntexa\UserFrontend\Application\Service\LoginAnalyticsService;
+use Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService;
 
 #[AsRequestHandler(for: LoginFormRequest::class)]
 class LoginFormHandler implements HttpHandlerInterface

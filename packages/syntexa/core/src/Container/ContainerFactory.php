@@ -84,9 +84,9 @@ class ContainerFactory
             return $registry;
         });
 
-        // User Frontend services - request-scoped (new instance each request)
-        $definitions[\Syntexa\UserFrontend\Application\Service\LoginAnalyticsService::class] = \DI\factory(function () {
-            return new \Syntexa\UserFrontend\Application\Service\LoginAnalyticsService();
+        // User Frontend domain services - request-scoped (new instance each request)
+        $definitions[\Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService::class] = \DI\factory(function () {
+            return new \Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService();
         });
 
         // Handlers with property injection - use autowire to enable property injection
