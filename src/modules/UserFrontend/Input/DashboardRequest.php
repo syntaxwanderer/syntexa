@@ -11,12 +11,13 @@ namespace Syntexa\Modules\UserFrontend\Input;
 use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\UserFrontend\Application\Input\Http\DashboardRequest as SyntexaDashboardRequestBase;
 use Syntexa\Modules\UserFrontend\Output\DashboardResponse as SyntexaDashboardResponse;
+use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 
 #[AsRequest(
     base: SyntexaDashboardRequestBase::class,
     responseWith: SyntexaDashboardResponse::class
 )]
-class DashboardRequest extends SyntexaDashboardRequestBase
+class DashboardRequest implements SyntexaRequestInterface
 {
 }

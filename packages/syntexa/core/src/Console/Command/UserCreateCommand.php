@@ -23,7 +23,8 @@ class UserCreateCommand extends BaseCommand
             ->setDescription('Create a new user')
             ->addArgument('email', InputArgument::OPTIONAL, 'User email')
             ->addArgument('password', InputArgument::OPTIONAL, 'User password')
-            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'User name', '')
+            ->addArgument('name', InputArgument::OPTIONAL, 'User name')
+            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'User name (alternative to argument)')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Force creation even if user exists');
     }
 
@@ -61,8 +62,11 @@ class UserCreateCommand extends BaseCommand
             $password = $helper->ask($input, $output, $question);
         }
 
-        // Get name
-        $name = $input->getOption('name');
+        // Get name (from argument first, then option, then interactive)
+        $name = $input->getArgument('name');
+        if (empty($name)) {
+            $name = $input->getOption('name');
+        }
         if (empty($name)) {
             $question = new Question('Enter name (optional): ', '');
             $name = $helper->ask($input, $output, $question);
@@ -91,13 +95,12 @@ class UserCreateCommand extends BaseCommand
 
         // Create user
         try {
-            $user = new User(
-                id: uniqid('user_', true),
-                email: $email,
-                passwordHash: User::hashPassword($password),
-                name: $name,
-                createdAt: new \DateTimeImmutable()
-            );
+            $user = new User();
+            $user->email = $email;
+            $user->setPassword($password);
+            $user->name = $name;
+            $user->createdAt = new \DateTimeImmutable();
+            $user->updatedAt = new \DateTimeImmutable();
 
             $userRepository->save($user);
 

@@ -13,6 +13,7 @@ use Syntexa\Core\Console\Command\ResponseGenerateCommand;
 use Syntexa\Core\Console\Command\LayoutGenerateCommand;
 use Syntexa\Core\Console\Command\QueueWorkCommand;
 use Syntexa\Core\Console\Command\UserCreateCommand;
+use Syntexa\Core\Console\Command\TestHandlerCommand;
 
 class Application extends SymfonyApplication
 {
@@ -20,7 +21,7 @@ class Application extends SymfonyApplication
     {
         parent::__construct('Syntexa', '1.0.0');
         
-        $this->addCommands([
+        $commands = [
             new ServerStartCommand(),
             new ServerStopCommand(),
             new ServerRestartCommand(),
@@ -29,7 +30,18 @@ class Application extends SymfonyApplication
             new LayoutGenerateCommand(),
             new QueueWorkCommand(),
             new UserCreateCommand(),
-        ]);
+            new TestHandlerCommand(),
+        ];
+
+        // Add ORM commands if available
+        if (class_exists(\Syntexa\Orm\Console\Command\EntityGenerateCommand::class)) {
+            $commands[] = new \Syntexa\Orm\Console\Command\EntityGenerateCommand();
+        }
+        if (class_exists(\Syntexa\Orm\Console\Command\MigrateCommand::class)) {
+            $commands[] = new \Syntexa\Orm\Console\Command\MigrateCommand();
+        }
+
+        $this->addCommands($commands);
     }
 }
 

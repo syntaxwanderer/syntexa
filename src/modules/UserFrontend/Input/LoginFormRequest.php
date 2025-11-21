@@ -12,13 +12,14 @@ use Syntexa\Core\Attributes\AsRequest;
 use Syntexa\UserFrontend\Application\Input\Http\LoginFormRequest as SyntexaLoginFormRequestBase;
 use Syntexa\Modules\UserFrontend\Output\LoginFormResponse as SyntexaLoginFormResponse;
 use Syntexa\UserFrontend\Application\Input\Http\Traits\LoginFormRequiredFieldsTrait as SyntexaLoginFormRequiredFieldsTrait;
+use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 
 #[AsRequest(
     base: SyntexaLoginFormRequestBase::class,
     responseWith: SyntexaLoginFormResponse::class
 )]
-class LoginFormRequest extends SyntexaLoginFormRequestBase
+class LoginFormRequest  implements SyntexaRequestInterface
 {
 
     use SyntexaLoginFormRequiredFieldsTrait;

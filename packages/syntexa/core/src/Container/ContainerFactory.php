@@ -84,19 +84,119 @@ class ContainerFactory
             return $registry;
         });
 
+        // Database Connection Pool - singleton (safe to persist)
+        // Initialize once when container is created
+        $definitions[\Syntexa\Orm\Connection\ConnectionPool::class] = \DI\factory(function () {
+            // Load .env from project root
+            $projectRoot = self::getProjectRoot();
+            $envFile = $projectRoot . '/.env';
+            $env = [];
+            
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    if (strpos($line, '#') === 0) {
+                        continue;
+                    }
+                    if (strpos($line, '=') !== false) {
+                        [$key, $value] = explode('=', $line, 2);
+                        $env[trim($key)] = trim($value);
+                    }
+                }
+            }
+            
+            $dbConfig = [
+                'host' => $env['DB_HOST'] ?? 'localhost',
+                'port' => (int) ($env['DB_PORT'] ?? '5432'),
+                'dbname' => $env['DB_NAME'] ?? 'syntexa',
+                'user' => $env['DB_USER'] ?? 'postgres',
+                'password' => $env['DB_PASSWORD'] ?? '',
+                'charset' => $env['DB_CHARSET'] ?? 'utf8',
+                'pool_size' => (int) ($env['DB_POOL_SIZE'] ?? '10'),
+            ];
+            
+            // Only initialize if Swoole is available
+            if (extension_loaded('swoole')) {
+                \Syntexa\Orm\Connection\ConnectionPool::initialize($dbConfig);
+            }
+            
+            // ConnectionPool uses static methods, so we return the class name
+            return \Syntexa\Orm\Connection\ConnectionPool::class;
+        });
+
+        // Entity Manager - request-scoped (new instance each request)
+        // For Swoole: uses ConnectionPool (must be initialized first)
+        // For CLI: creates direct PDO connection
+        $definitions[\Syntexa\Orm\Entity\EntityManager::class] = \DI\factory(function (\DI\Container $c) {
+            // Check if we're in Swoole context
+            if (extension_loaded('swoole') && \Swoole\Coroutine::getCid() >= 0) {
+                // Swoole context - ensure ConnectionPool is initialized first
+                // Get ConnectionPool definition to trigger initialization
+                $c->get(\Syntexa\Orm\Connection\ConnectionPool::class);
+                
+                // Now create EntityManager which will use ConnectionPool::get()
+                return new \Syntexa\Orm\Entity\EntityManager();
+            } else {
+                // CLI context - create direct PDO connection
+                // Load .env from project root
+                $projectRoot = self::getProjectRoot();
+                $envFile = $projectRoot . '/.env';
+                $env = [];
+                
+                if (file_exists($envFile)) {
+                    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    foreach ($lines as $line) {
+                        if (strpos($line, '#') === 0) {
+                            continue;
+                        }
+                        if (strpos($line, '=') !== false) {
+                            [$key, $value] = explode('=', $line, 2);
+                            $env[trim($key)] = trim($value);
+                        }
+                    }
+                }
+                
+                $dbConfig = [
+                    'host' => $env['DB_HOST'] ?? 'localhost',
+                    'port' => (int) ($env['DB_PORT'] ?? '5432'),
+                    'dbname' => $env['DB_NAME'] ?? 'syntexa',
+                    'user' => $env['DB_USER'] ?? 'postgres',
+                    'password' => $env['DB_PASSWORD'] ?? '',
+                ];
+                
+                $dsn = sprintf(
+                    'pgsql:host=%s;port=%d;dbname=%s',
+                    $dbConfig['host'],
+                    $dbConfig['port'],
+                    $dbConfig['dbname']
+                );
+                
+                $pdo = new \PDO($dsn, $dbConfig['user'], $dbConfig['password'], [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                ]);
+                
+                return new \Syntexa\Orm\Entity\EntityManager($pdo);
+            }
+        });
+
         // User Frontend domain services - request-scoped (new instance each request)
         $definitions[\Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService::class] = \DI\factory(function () {
             return new \Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService();
         });
 
-        // User repository - singleton (file-based storage)
-        $definitions[\Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface::class] = \DI\create(\Syntexa\UserFrontend\Domain\Repository\UserRepository::class);
+        // User repository - request-scoped (uses EntityManager)
+        $definitions[\Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface::class] = \DI\factory(function (\DI\Container $c) {
+            $em = $c->get(\Syntexa\Orm\Entity\EntityManager::class);
+            return new \Syntexa\UserFrontend\Domain\Repository\UserRepository($em);
+        });
 
         // Auth service - request-scoped
         $definitions[\Syntexa\UserFrontend\Domain\Service\AuthService::class] = \DI\autowire();
 
         // Handlers with property injection - use autowire to enable property injection
         $definitions[\Syntexa\UserFrontend\Application\Handler\Request\LoginFormHandler::class] = \DI\autowire();
+        $definitions[\Syntexa\UserFrontend\Application\Handler\Request\DashboardHandler::class] = \DI\autowire();
 
         // Example: Infrastructure singleton (safe to persist)
         // $definitions[\Syntexa\Core\Database\ConnectionPool::class] = \DI\create()
@@ -106,6 +206,23 @@ class ContainerFactory
         // Modules can extend this via service providers
 
         return $definitions;
+    }
+
+    /**
+     * Get project root directory
+     */
+    private static function getProjectRoot(): string
+    {
+        $dir = __DIR__;
+        while ($dir !== '/' && $dir !== '') {
+            if (file_exists($dir . '/composer.json')) {
+                if (is_dir($dir . '/src/modules')) {
+                    return $dir;
+                }
+            }
+            $dir = dirname($dir);
+        }
+        return dirname(__DIR__, 6);
     }
 
     /**

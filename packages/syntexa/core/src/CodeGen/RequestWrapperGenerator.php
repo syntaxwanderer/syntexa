@@ -283,17 +283,42 @@ class RequestWrapperGenerator
             // Ignore if base class can't be reflected
         }
 
-        $implements = [];
-        foreach ($target['interfaces'] ?? [] as $interfaceFqn) {
-            // Only add interface if base class doesn't already implement it
-            if (!in_array($interfaceFqn, $baseInterfaces, true)) {
-                $implements[] = self::registerImport($interfaceFqn, $imports, $usedAliases);
+        // Wrapper should NOT extend base class - use traits only (consistent with LoginApiRequest pattern)
+        // Check if base class has any methods beyond traits
+        $baseHasOwnMethods = false;
+        try {
+            $baseReflection = new ReflectionClass($baseClass);
+            $baseMethods = $baseReflection->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED);
+            $baseTraits = $baseReflection->getTraitNames();
+            // Check if there are methods not from traits
+            foreach ($baseMethods as $method) {
+                if ($method->getDeclaringClass()->getName() === $baseClass) {
+                    // Check if this method is not from a trait
+                    $declaringTrait = null;
+                    foreach ($baseTraits as $traitName) {
+                        if (method_exists($traitName, $method->getName())) {
+                            $declaringTrait = $traitName;
+                            break;
+                        }
+                    }
+                    if (!$declaringTrait) {
+                        $baseHasOwnMethods = true;
+                        break;
+                    }
+                }
             }
+        } catch (\Throwable $e) {
+            // If we can't reflect, assume no own methods
         }
-        $implementsString = empty($implements) ? '' : ' implements ' . implode(', ', $implements);
 
-        // Wrapper extends base class to inherit all methods
-        $extendsString = "extends {$baseAlias}";
+        // Always implement RequestInterface in wrapper (consistent pattern)
+        $implements = [];
+        $requestInterfaceFqn = 'Syntexa\\Core\\Contract\\RequestInterface';
+        $implements[] = self::registerImport($requestInterfaceFqn, $imports, $usedAliases);
+        $implementsString = ' implements ' . implode(', ', $implements);
+
+        // Only extend if base class has own methods (not just traits)
+        $extendsString = $baseHasOwnMethods ? "extends {$baseAlias}" : '';
 
         $namespace = 'Syntexa\\Modules\\' . ($target['module']['studly'] ?? 'Project') . '\\Input';
         $className = $target['short'];
@@ -320,7 +345,7 @@ use Syntexa\Core\Attributes\AsRequest;
 #[AsRequest(
     {$attrString}
 )]
-class {$className} {$extendsString}{$implementsString}
+class {$className}{$extendsString}{$implementsString}
 {
 {$traitBlock}}
 

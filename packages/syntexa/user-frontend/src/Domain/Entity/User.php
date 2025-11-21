@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Syntexa\UserFrontend\Domain\Entity;
 
+use Syntexa\Orm\Entity\BaseEntity;
+use Syntexa\Orm\Attributes\AsEntity;
+
 /**
  * User domain entity
+ * 
+ * Usage:
+ * 1. Generate wrapper: bin/syntexa entity:generate User
+ * 2. Use EntityManager to persist/retrieve
  */
-class User
+#[AsEntity(table: 'users')]
+class User extends BaseEntity
 {
-    public function __construct(
-        public readonly string $id,
-        public readonly string $email,
-        private string $passwordHash,
-        public readonly string $name = '',
-        public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
-    ) {
-    }
+    public string $email = '';
+    private string $passwordHash = '';
+    public string $name = '';
+
+    // No constructor needed - BaseEntity properties are public and nullable
 
     /**
      * Verify password
@@ -35,33 +40,68 @@ class User
     }
 
     /**
-     * Convert to array for storage
+     * Set password (hashes it)
      */
-    public function toArray(): array
+    public function setPassword(string $password): void
     {
-        return [
-            'id' => $this->id,
-            'email' => $this->email,
-            'password_hash' => $this->passwordHash,
-            'name' => $this->name,
-            'created_at' => $this->createdAt->format('Y-m-d H:i:s'),
-        ];
+        $this->passwordHash = self::hashPassword($password);
     }
 
     /**
-     * Create from array
+     * Get password hash (for storage)
      */
-    public static function fromArray(array $data): self
+    public function getPasswordHash(): string
     {
-        return new self(
-            id: $data['id'],
-            email: $data['email'],
-            passwordHash: $data['password_hash'],
-            name: $data['name'] ?? '',
-            createdAt: isset($data['created_at']) 
-                ? new \DateTimeImmutable($data['created_at']) 
-                : new \DateTimeImmutable(),
-        );
+        return $this->passwordHash;
+    }
+
+    /**
+     * Convert to array for storage
+     * Override to handle password_hash field name mapping
+     */
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        
+        // Map passwordHash to password_hash for database
+        if (isset($data['passwordHash'])) {
+            $data['password_hash'] = $data['passwordHash'];
+            unset($data['passwordHash']);
+        }
+        
+        // BaseEntity already handles DateTimeImmutable -> string conversion
+        // But we need to map camelCase to snake_case for database
+        $mapped = [];
+        foreach ($data as $key => $value) {
+            // Convert camelCase to snake_case
+            $snakeKey = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $key));
+            $mapped[$snakeKey] = $value;
+        }
+        
+        return $mapped;
+    }
+
+    /**
+     * Hydrate entity from array
+     * Override to handle password_hash field name mapping
+     */
+    public function fromArray(array $data): void
+    {
+        // Map snake_case to camelCase
+        $mapped = [];
+        foreach ($data as $key => $value) {
+            // Convert snake_case to camelCase
+            $camelKey = lcfirst(str_replace('_', '', ucwords($key, '_')));
+            $mapped[$camelKey] = $value;
+        }
+        
+        // Map password_hash to passwordHash explicitly
+        if (isset($mapped['passwordHash'])) {
+            // Already mapped
+        } elseif (isset($data['password_hash'])) {
+            $mapped['passwordHash'] = $data['password_hash'];
+        }
+        
+        parent::fromArray($mapped);
     }
 }
-

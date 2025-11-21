@@ -198,10 +198,28 @@ class Application
                     // This ensures handlers get fresh instances for each request
                     try {
                         $handler = $this->requestScopedContainer->get($handlerClass);
+                        
+                        // Verify that properties are injected (especially important in Swoole)
+                        $reflection = new \ReflectionClass($handler);
+                        foreach ($reflection->getProperties() as $property) {
+                            $attributes = $property->getAttributes(\DI\Attribute\Inject::class);
+                            if (!empty($attributes)) {
+                                $property->setAccessible(true);
+                                $value = $property->getValue($handler);
+                                if ($value === null) {
+                                    throw new \RuntimeException(
+                                        "Property {$property->getName()} in {$handlerClass} was not injected. " .
+                                        "This usually means injectOn() failed or make() didn't inject properties."
+                                    );
+                                }
+                            }
+                        }
                     } catch (\Throwable $e) {
-                        // Fallback to direct instantiation if DI fails
-                        echo "⚠️  DI resolution failed, using direct instantiation: {$e->getMessage()}\n";
-                        $handler = new $handlerClass();
+                        // Don't fallback to direct instantiation - it won't work with property injection
+                        // Instead, throw the error so we can see what's wrong
+                        echo "❌ DI resolution failed for {$handlerClass}: {$e->getMessage()}\n";
+                        echo "Stack trace: " . $e->getTraceAsString() . "\n";
+                        throw new \RuntimeException("Failed to resolve handler {$handlerClass}: " . $e->getMessage(), 0, $e);
                     }
                     
                     if (method_exists($handler, 'handle')) {

@@ -1,0 +1,33 @@
+{
+    "name": "syntexa/module-orm",
+    "description": "Stateless ORM for Syntexa Framework with PostgreSQL support and module table extension",
+    "type": "syntexa-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Syntexa",
+            "email": "support@syntexa.local"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-pdo": "*",
+        "ext-pdo_pgsql": "*",
+        "swoole/ide-helper": "^5.1"
+    },
+    "suggest": {
+        "ext-swoole": "Required for connection pooling and async queries"
+    },
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Orm\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "name": "orm",
+            "description": "ORM module with PostgreSQL support and table extension via traits"
+        }
+    }
+}
+

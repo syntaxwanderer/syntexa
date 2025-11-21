@@ -19,12 +19,15 @@
         "php": "^8.4",
         "php-di/php-di": "^7.1",
         "symfony/console": "^7.3",
+        "symfony/process": "^7.3",
+        "syntexa/module-orm": "*",
         "syntexa/module-user-api": "*",
         "syntexa/module-user-frontend": "*"
     },
   "autoload": {
         "psr-4": {
             "Syntexa\\Core\\": "vendor/syntexa/core/src/",
+            "Syntexa\\Orm\\": "vendor/syntexa/orm/src/",
             "Syntexa\\Modules\\": "src/modules/"
     },
     "exclude-from-classmap": [

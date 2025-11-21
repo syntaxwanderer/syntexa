@@ -24,6 +24,11 @@ if (!extension_loaded('swoole')) {
     die("Swoole extension is required but not installed.\n");
 }
 
+// Initialize DI container first (this initializes ConnectionPool if needed)
+echo "Initializing DI container...\n";
+\Syntexa\Core\Container\ContainerFactory::create();
+echo "DI container initialized\n";
+
 // Create application to get environment
 echo "Creating application...\n";
 $app = new Application();
@@ -43,6 +48,8 @@ echo "Swoole server created\n";
 
 // Server configuration from environment
 $pidFile = __DIR__ . '/var/swoole.pid';
+$statsFile = __DIR__ . '/var/server-stats.json';
+$swooleStatsFile = __DIR__ . '/var/swoole-stats.json';
 @mkdir(dirname($pidFile), 0777, true);
 $server->set([
     'worker_num' => $env->swooleWorkerNum,
@@ -54,8 +61,17 @@ $server->set([
     'pid_file' => $pidFile,
 ]);
 
+// Initialize stats
+$stats = [
+    'requests' => 0,
+    'errors' => 0,
+    'start_time' => time(),
+    'uptime' => 0,
+];
+file_put_contents($statsFile, json_encode($stats));
+
 // Server events
-$server->on("start", function ($server) use ($env) {
+$server->on("start", function ($server) use ($env, $swooleStatsFile) {
     echo "Syntexa Framework - Swoole Mode\n";
     echo "Server started at http://{$env->swooleHost}:{$env->swoolePort}\n";
     echo "Mode: " . ($env->isDev() ? 'development' : 'production') . "\n";
@@ -63,14 +79,30 @@ $server->on("start", function ($server) use ($env) {
     echo "Swoole Version: " . swoole_version() . "\n";
     echo "Workers: {$env->swooleWorkerNum}\n";
     echo "Max Requests: {$env->swooleMaxRequest}\n";
+    
+    // Periodically update Swoole stats
+    \Swoole\Timer::tick(2000, function () use ($server, $swooleStatsFile) {
+        $stats = $server->stats();
+        // Add memory stats (Swoole stats() doesn't include memory)
+        $stats['memory_total'] = memory_get_usage(true);
+        $stats['memory_peak'] = memory_get_peak_usage(true);
+        file_put_contents($swooleStatsFile, json_encode($stats));
+    });
 });
 
-$server->on("request", function ($request, $response) use ($env, $app) {
+$server->on("request", function ($request, $response) use ($env, $app, $statsFile) {
     $path = $request->server['request_uri'] ?? '/';
     $method = $request->server['request_method'] ?? 'GET';
     
+    // Update stats
+    $stats = json_decode(file_get_contents($statsFile), true) ?: ['requests' => 0, 'errors' => 0, 'start_time' => time()];
+    $stats['requests']++;
+    $stats['uptime'] = time() - $stats['start_time'];
+    file_put_contents($statsFile, json_encode($stats));
+    
     // Ensure response is always sent
     $responseSent = false;
+    $hasError = false;
     
     try {
         echo "📥 Incoming request: {$method} {$path}\n";
@@ -116,6 +148,12 @@ $server->on("request", function ($request, $response) use ($env, $app) {
         $responseSent = true;
         echo "✅ Response sent\n";
     } catch (\Throwable $e) {
+        $hasError = true;
+        // Update error stats
+        $stats = json_decode(file_get_contents($statsFile), true) ?: ['requests' => 0, 'errors' => 0, 'start_time' => time()];
+        $stats['errors']++;
+        file_put_contents($statsFile, json_encode($stats));
+        
         echo "❌ Error in request handler: " . $e->getMessage() . "\n";
         echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
         
