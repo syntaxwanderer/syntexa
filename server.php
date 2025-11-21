@@ -136,6 +136,14 @@ $server->on("request", function ($request, $response) use ($env, $app) {
             }
         }
     } finally {
+        // Reset request-scoped container cache after each request
+        // This ensures no data leakage between requests in Swoole
+        // Note: PHP-DI uses factory functions for request-scoped services,
+        // but we also reset our wrapper cache for extra safety
+        if (isset($app)) {
+            $app->getRequestScopedContainer()->reset();
+        }
+        
         // Final safety net - ensure response is always sent
         if (!$responseSent) {
             try {

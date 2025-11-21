@@ -17,11 +17,12 @@
     ],
     "require": {
         "php": "^8.4",
+        "php-di/php-di": "^7.1",
+        "symfony/console": "^7.3",
         "syntexa/module-user-api": "*",
         "syntexa/module-user-frontend": "*"
     },
-  "require-dev": {},
-    "autoload": {
+  "autoload": {
         "psr-4": {
             "Syntexa\\Core\\": "vendor/syntexa/core/src/",
             "Syntexa\\Modules\\": "src/modules/"

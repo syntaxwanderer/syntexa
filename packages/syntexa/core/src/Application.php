@@ -7,6 +7,8 @@ namespace Syntexa\Core;
 use Syntexa\Core\Discovery\AttributeDiscovery;
 use Syntexa\Core\Queue\HandlerExecution;
 use Syntexa\Core\Queue\QueueDispatcher;
+use DI\Container;
+use Syntexa\Core\Container\RequestScopedContainer;
 
 /**
  * Minimal Syntexa Application
@@ -14,10 +16,24 @@ use Syntexa\Core\Queue\QueueDispatcher;
 class Application
 {
     private Environment $environment;
+    private Container $container;
+    private RequestScopedContainer $requestScopedContainer;
     
-    public function __construct()
+    public function __construct(?Container $container = null)
     {
-        $this->environment = Environment::create();
+        $this->container = $container ?? \Syntexa\Core\Container\ContainerFactory::get();
+        $this->requestScopedContainer = \Syntexa\Core\Container\ContainerFactory::getRequestScoped();
+        $this->environment = $this->container->get(Environment::class);
+    }
+    
+    public function getContainer(): Container
+    {
+        return $this->container;
+    }
+    
+    public function getRequestScopedContainer(): RequestScopedContainer
+    {
+        return $this->requestScopedContainer;
     }
     
     public function getEnvironment(): Environment
@@ -155,7 +171,17 @@ class Application
                         echo "⚠️  Handler class not found: {$handlerClass}\n";
                         continue;
                     }
-                    $handler = new $handlerClass();
+                    
+                    // Use request-scoped container to resolve handler dependencies
+                    // This ensures handlers get fresh instances for each request
+                    try {
+                        $handler = $this->requestScopedContainer->get($handlerClass);
+                    } catch (\Throwable $e) {
+                        // Fallback to direct instantiation if DI fails
+                        echo "⚠️  DI resolution failed, using direct instantiation: {$e->getMessage()}\n";
+                        $handler = new $handlerClass();
+                    }
+                    
                     if (method_exists($handler, 'handle')) {
                         $resDto = $handler->handle($reqDto, $resDto);
                         echo "✅ Handler executed: {$handlerClass}\n";

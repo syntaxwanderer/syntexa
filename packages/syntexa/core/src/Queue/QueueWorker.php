@@ -23,7 +23,7 @@ class QueueWorker
         });
     }
 
-    private function processPayload(string $payload): void
+    public function processPayload(string $payload): void
     {
         try {
             $message = QueuedHandlerMessage::fromJson($payload);
@@ -50,6 +50,7 @@ class QueueWorker
         $handler->handle($request, $response);
         echo "✅ Async handler executed: {$handlerClass}\n";
     }
+
 
     private function hydrateDto(string $class, array $payload): object
     {
