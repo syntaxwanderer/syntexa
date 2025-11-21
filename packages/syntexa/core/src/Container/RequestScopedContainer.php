@@ -24,12 +24,16 @@ class RequestScopedContainer
 
     /**
      * Get a service - creates new instance for request-scoped services
+     * 
+     * For handlers with property injection (#[Inject]), PHP-DI needs autowire() definition
+     * and we use make() which respects autowiring and property injection
      */
     public function get(string $id): mixed
     {
         // Check if this is a request-scoped service
         if ($this->isRequestScoped($id)) {
             // Always create new instance for request-scoped services
+            // make() respects autowiring and property injection when configured
             return $this->container->make($id);
         }
 

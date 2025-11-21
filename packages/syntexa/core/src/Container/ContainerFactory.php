@@ -27,6 +27,12 @@ class ContainerFactory
             // Enable compilation for better performance (optional)
             // $builder->enableCompilation(__DIR__ . '/../../../../var/cache/container');
             
+            // Enable autowiring (required for property injection with #[Inject] attributes)
+            $builder->useAutowiring(true);
+            
+            // Enable attributes (required for #[Inject] property injection)
+            $builder->useAttributes(true);
+            
             // Load definitions
             $builder->addDefinitions(self::getDefinitions());
             
@@ -78,10 +84,13 @@ class ContainerFactory
             return $registry;
         });
 
-        // Example: Request-scoped service (new instance each request)
-        // $definitions[\Syntexa\Core\Container\ExampleService::class] = \DI\factory(function () {
-        //     return new \Syntexa\Core\Container\ExampleService();
-        // });
+        // User Frontend services - request-scoped (new instance each request)
+        $definitions[\Syntexa\UserFrontend\Application\Service\LoginAnalyticsService::class] = \DI\factory(function () {
+            return new \Syntexa\UserFrontend\Application\Service\LoginAnalyticsService();
+        });
+
+        // Handlers with property injection - use autowire to enable property injection
+        $definitions[\Syntexa\UserFrontend\Application\Handler\Request\LoginFormHandler::class] = \DI\autowire();
 
         // Example: Infrastructure singleton (safe to persist)
         // $definitions[\Syntexa\Core\Database\ConnectionPool::class] = \DI\create()

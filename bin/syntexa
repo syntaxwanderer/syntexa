@@ -1,8 +1,20 @@
-#!/usr/bin/env bash
-# Syntexa CLI - Wrapper for Symfony Console
-# This script delegates to bin/syntexa.php for better command handling
+#!/usr/bin/env php
+<?php
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+declare(strict_types=1);
 
-# Delegate to PHP Symfony Console
-php "${ROOT_DIR}/bin/syntexa.php" "$@"
+/**
+ * Syntexa Framework CLI
+ * 
+ * This file serves as the entry point for all Syntexa console commands.
+ * It initializes the Symfony Console application and registers all framework commands.
+ */
+
+// Load Composer autoloader
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Create and run the Symfony Console application
+use Syntexa\Core\Console\Application;
+
+$application = new Application();
+$application->run();
