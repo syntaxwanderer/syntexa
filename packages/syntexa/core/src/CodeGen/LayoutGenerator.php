@@ -84,7 +84,7 @@ class LayoutGenerator
                 continue;
             }
 
-            $files = glob($layoutDir . '/*.xml') ?: [];
+            $files = glob($layoutDir . '/*.html.twig') ?: [];
             if (empty($files)) {
                 continue;
             }
@@ -93,7 +93,7 @@ class LayoutGenerator
             $studly = self::slugToStudly($moduleName);
 
             foreach ($files as $file) {
-                $handle = basename($file, '.xml');
+                $handle = basename($file, '.html.twig');
                 $result[] = [
                     'id' => $studly . '/' . $handle,
                     'handle' => $handle,
@@ -161,8 +161,8 @@ class LayoutGenerator
             throw new \RuntimeException("Failed to read layout source: {$layout['source']}");
         }
 
-        $comment = "<!-- AUTO-GENERATED FROM {$layout['module']}/{$layout['handle']}. Edit freely in src/. -->\n";
-        $payload = self::injectComment($contents, $comment);
+        $comment = "{# AUTO-GENERATED FROM {$layout['module']}/{$layout['handle']}. Edit freely in src/. #}\n";
+        $payload = $comment . $contents;
 
         if (file_put_contents($destination, $payload) === false) {
             throw new \RuntimeException("Unable to write layout copy to {$destination}");
@@ -170,21 +170,6 @@ class LayoutGenerator
 
         echo "✅ Layout {$layout['id']} copied to {$destination}\n";
         return true;
-    }
-
-    private static function injectComment(string $contents, string $comment): string
-    {
-        $trimmed = ltrim($contents);
-        if (str_starts_with($trimmed, '<?xml')) {
-            $pos = strpos($contents, "\n");
-            if ($pos !== false) {
-                $prefix = substr($contents, 0, $pos + 1);
-                $suffix = substr($contents, $pos + 1);
-                return $prefix . $comment . $suffix;
-            }
-        }
-
-        return $comment . $contents;
     }
 
     private static function slugToStudly(string $slug): string

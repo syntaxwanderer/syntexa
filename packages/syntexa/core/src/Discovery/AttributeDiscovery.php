@@ -274,6 +274,41 @@ class AttributeDiscovery
             }
         }
 
+        // Discover layout slot contributions (optional)
+        if (
+            class_exists('Syntexa\\Frontend\\Attributes\\AsLayoutSlot')
+            && class_exists('Syntexa\\Frontend\\Layout\\LayoutSlotRegistry')
+        ) {
+            $slotAttribute = 'Syntexa\\Frontend\\Attributes\\AsLayoutSlot';
+            $slotClasses = IntelligentAutoloader::findClassesWithAttribute($slotAttribute);
+            echo "🔍 Found " . count($slotClasses) . " layout slot contributors\n";
+            foreach ($slotClasses as $className) {
+                try {
+                    $class = new \ReflectionClass($className);
+                    $attrs = $class->getAttributes($slotAttribute);
+                    foreach ($attrs as $attr) {
+                        /** @var \Syntexa\Frontend\Attributes\AsLayoutSlot $meta */
+                        $meta = $attr->newInstance();
+                        $handle = $meta->handle;
+                        $slot = $meta->slot;
+                        $template = EnvValueResolver::resolve($meta->template);
+                        $context = EnvValueResolver::resolve($meta->context);
+                        $priority = $meta->priority;
+                        \Syntexa\Frontend\Layout\LayoutSlotRegistry::register(
+                            $handle,
+                            $slot,
+                            $template,
+                            is_array($context) ? $context : [],
+                            $priority
+                        );
+                        echo "✅ Registered layout slot {$slot} for {$handle} via {$className}\n";
+                    }
+                } catch (\Throwable $e) {
+                    echo "⚠️  Error analyzing layout slot {$className}: " . $e->getMessage() . "\n";
+                }
+            }
+        }
+
     }
 
     private static function resolveRequestAttributes(string $className, array $metaMap, array &$cache = []): array

@@ -48,23 +48,42 @@ stop() {
       fi
     fi
     rm -f "${PID_FILE}" 2>/dev/null || true
-    echo "Stopped."
-    return 0
   fi
-  # Fallback to port-based stop
-  PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":${PORT}" '$4 ~ port {print $6}' | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
-  if [ -z "${PIDS}" ]; then
-    echo "No processes found on port ${PORT}."
-    return 0
-  fi
-  echo "PIDs: ${PIDS}"
-  for pid in ${PIDS}; do kill -TERM "$pid" 2>/dev/null || true; done
-  sleep 1
-  REMAIN=$(ss -ltnp 2>/dev/null | awk -v port=":${PORT}" '$4 ~ port {print $6}' | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
-  if [ -n "${REMAIN}" ]; then
-    for pid in ${REMAIN}; do kill -9 "$pid" 2>/dev/null || true; done
-  fi
+  kill_port_processes
   echo "Stopped."
+}
+
+kill_port_processes() {
+  local attempts=0
+  while true; do
+    PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":${PORT}" '$4 ~ port {print $6}' | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+    if [ -z "${PIDS}" ]; then
+      if [ "${attempts}" -gt 0 ]; then
+        echo "✅ All processes on port ${PORT} terminated."
+      else
+        echo "No processes found on port ${PORT}."
+      fi
+      break
+    fi
+    echo "PIDs on port ${PORT}: ${PIDS}"
+    for pid in ${PIDS}; do
+      kill -TERM "$pid" 2>/dev/null || true
+    done
+    sleep 1
+    PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":${PORT}" '$4 ~ port {print $6}' | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+    if [ -z "${PIDS}" ]; then
+      break
+    fi
+    for pid in ${PIDS}; do
+      kill -9 "$pid" 2>/dev/null || true
+    done
+    sleep 1
+    attempts=$((attempts + 1))
+    if [ "${attempts}" -ge 5 ]; then
+      echo "⚠️  Unable to terminate all processes after ${attempts} attempts."
+      break
+    fi
+  done
 }
 
 restart() {

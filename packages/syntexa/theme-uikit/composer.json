@@ -1,0 +1,19 @@
+{
+    "name": "syntexa/theme-uikit",
+    "description": "UIkit driven front-end theme for Syntexa",
+    "type": "syntexa-theme",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Theme\\UIKit\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "name": "theme-uikit",
+            "description": "Provides UIkit CSS/JS and Twig frames"
+        },
+        "template_alias": "theme-uikit"
+    }
+}
+

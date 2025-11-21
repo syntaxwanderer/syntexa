@@ -2,28 +2,29 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>{{ title|default('Syntexa') }}</title>
+    <title>{% block title %}{{ title|default('Syntexa') }}{% endblock %}</title>
     <style>
       .layout{display:grid;grid-template-columns:1fr 280px;gap:24px}
     </style>
+    {% block head_extra %}{% endblock %}
   </head>
   <body>
     <header>
-      {{ header|default('')|raw }}
+      {% block header %}{{ header|default('')|raw }}{% endblock %}
     </header>
     <nav class="breadcrumbs">
-      {{ breadcrumbs|default('')|raw }}
+      {% block breadcrumbs %}{{ breadcrumbs|default('')|raw }}{% endblock %}
     </nav>
     <div class="layout">
       <main>
-        {{ main|default(content|default(''))|raw }}
+        {% block main %}{{ main|default(content|default(''))|raw }}{% endblock %}
       </main>
       <aside>
-        {{ sidebar|default('')|raw }}
+        {% block sidebar %}{{ sidebar|default('')|raw }}{% endblock %}
       </aside>
     </div>
     <footer>
-      {{ footer|default('')|raw }}
+      {% block footer %}{{ footer|default('')|raw }}{% endblock %}
     </footer>
   </body>
 </html>

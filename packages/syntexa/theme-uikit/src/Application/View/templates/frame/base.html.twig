@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% block title %}{{ title|default('Syntexa') }}{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/css/uikit.min.css" integrity="sha384-AyCpswVAs3gxP4ECl9WsJSGksb0i/nXmyq/YGc5H7JJqblJDGiSU/7Uv1dtTNxDz" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/js/uikit.min.js" defer integrity="sha384-FlyNABf20I1zdsU+f1cqZ0n9wYN8eEwkf2LA1Cc6EMKmqRnKWpUXP1cIsgTC16Dn" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/js/uikit-icons.min.js" defer integrity="sha384-V0/0c+gY7lCk6lJ3uj0R4cG7D4brah0Q6CD9CErb8uW6J+hcArv9AdKkz9Yjx7s0" crossorigin="anonymous"></script>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body class="uk-background-muted">
+    {% block body %}
+      <main class="uk-section">
+        {% block content %}{{ content|raw }}{% endblock %}
+      </main>
+    {% endblock %}
+  </body>
+</html>
+
