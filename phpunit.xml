@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,defects"
+         failOnRisky="true"
+         failOnWarning="true"
+         beStrictAboutOutputDuringTests="true"
+         convertDeprecationsToExceptions="true">
+    <testsuites>
+        <testsuite name="Syntexa Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    
+    <source>
+        <include>
+            <directory>packages/syntexa</directory>
+            <directory>src</directory>
+        </include>
+        <exclude>
+            <directory>packages/syntexa/*/tests</directory>
+            <directory>vendor</directory>
+        </exclude>
+    </source>
+    
+    <php>
+        <env name="APP_ENV" value="test"/>
+        <env name="APP_DEBUG" value="1"/>
+    </php>
+</phpunit>
+

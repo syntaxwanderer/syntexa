@@ -96,11 +96,10 @@ class UserCreateCommand extends BaseCommand
         // Create user
         try {
             $user = new User();
-            $user->email = $email;
+            $user->setEmail($email);
             $user->setPassword($password);
-            $user->name = $name;
-            $user->createdAt = new \DateTimeImmutable();
-            $user->updatedAt = new \DateTimeImmutable();
+            $user->setName($name !== '' ? $name : null);
+            $user->initializeTimestamps();
 
             $userRepository->save($user);
 
@@ -108,10 +107,10 @@ class UserCreateCommand extends BaseCommand
             $io->table(
                 ['Field', 'Value'],
                 [
-                    ['ID', $user->id],
-                    ['Email', $user->email],
-                    ['Name', $user->name ?: '(empty)'],
-                    ['Created', $user->createdAt->format('Y-m-d H:i:s')],
+                    ['ID', $user->getId()],
+                    ['Email', $user->getEmail()],
+                    ['Name', $user->getName() ?: '(empty)'],
+                    ['Created', $user->getCreatedAt()?->format('Y-m-d H:i:s')],
                 ]
             );
 

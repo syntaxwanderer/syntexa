@@ -1,19 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Syntexa\Core\Attributes;
 
 use Attribute;
 use Syntexa\Core\Queue\HandlerExecution;
 
+/**
+ * Marks a class as an HTTP request handler
+ * 
+ * @see DocumentedAttributeInterface
+ */
 #[Attribute(Attribute::TARGET_CLASS)]
-class AsRequestHandler
+class AsRequestHandler implements DocumentedAttributeInterface
 {
+    use DocumentedAttributeTrait;
+
+    public readonly ?string $doc;
+
     public function __construct(
+        ?string $doc = null,
         public string $for,
         public HandlerExecution|string|null $execution = null,
         public ?string $transport = null,
         public ?string $queue = null,
         public ?int $priority = null,
     ) {
+        $this->doc = $doc;
+    }
+
+    public function getDocPath(): string
+    {
+        return $this->doc ?? 'docs/en/attributes/AsRequestHandler.md';
     }
 }

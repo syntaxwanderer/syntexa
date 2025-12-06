@@ -18,15 +18,5 @@ interface EntityInterface
      * Check if entity is new (not persisted)
      */
     public function isNew(): bool;
-
-    /**
-     * Convert entity to array
-     */
-    public function toArray(): array;
-
-    /**
-     * Hydrate entity from array
-     */
-    public function fromArray(array $data): void;
 }
 

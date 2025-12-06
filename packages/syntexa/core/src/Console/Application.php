@@ -40,6 +40,9 @@ class Application extends SymfonyApplication
         if (class_exists(\Syntexa\Orm\Console\Command\MigrateCommand::class)) {
             $commands[] = new \Syntexa\Orm\Console\Command\MigrateCommand();
         }
+        if (class_exists(\Syntexa\Orm\Console\Command\DatabaseBuildCommand::class)) {
+            $commands[] = new \Syntexa\Orm\Console\Command\DatabaseBuildCommand();
+        }
 
         $this->addCommands($commands);
     }

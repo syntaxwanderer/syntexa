@@ -24,11 +24,16 @@
         "syntexa/module-user-api": "*",
         "syntexa/module-user-frontend": "*"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^12.5"
+    },
   "autoload": {
         "psr-4": {
             "Syntexa\\Core\\": "vendor/syntexa/core/src/",
             "Syntexa\\Orm\\": "vendor/syntexa/orm/src/",
-            "Syntexa\\Modules\\": "src/modules/"
+            "Syntexa\\Modules\\": "src/modules/",
+            "Syntexa\\Infrastructure\\": "src/infrastructure/",
+            "Syntexa\\Tests\\": "tests/"
     },
     "exclude-from-classmap": [
       "vendor/twig/twig/src/Test/"

@@ -11,16 +11,29 @@ use Attribute;
  *
  * Modules can provide request parts that will be combined into the final
  * project-specific request class during code generation.
+ * 
+ * @see DocumentedAttributeInterface
  */
 #[Attribute(Attribute::TARGET_CLASS)]
-class AsRequestPart
+class AsRequestPart implements DocumentedAttributeInterface
 {
+    use DocumentedAttributeTrait;
+
+    public readonly ?string $doc;
+
     public function __construct(
+        ?string $doc = null,
         /**
          * Fully-qualified class name of the base request that this part targets.
          */
         public string $base
     ) {
+        $this->doc = $doc;
+    }
+
+    public function getDocPath(): string
+    {
+        return $this->doc ?? 'docs/en/attributes/AsRequestPart.md';
     }
 }
 

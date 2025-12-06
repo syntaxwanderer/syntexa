@@ -22,6 +22,7 @@ use Attribute;
  * Example:
  * ```php
  * #[AsRequest(
+ *     doc: 'docs/attributes/AsRequest.md',
  *     path: 'env::API_LOGIN_PATH::/api/login',
  *     methods: ['POST'],
  *     name: 'env::API_LOGIN_ROUTE_NAME::api.login',
@@ -30,9 +31,14 @@ use Attribute;
  * ```
  */
 #[Attribute(Attribute::TARGET_CLASS)]
-class AsRequest
+class AsRequest implements DocumentedAttributeInterface
 {
+    use DocumentedAttributeTrait;
+
+    public readonly ?string $doc;
+
     public function __construct(
+        ?string $doc = null,
         public ?string $base = null,
         public ?string $responseWith = null,
         public ?string $path = null,
@@ -43,5 +49,12 @@ class AsRequest
         public ?array $options = null,
         public ?array $tags = null,
         public ?bool $public = null,
-    ) {}
+    ) {
+        $this->doc = $doc;
+    }
+
+    public function getDocPath(): string
+    {
+        return $this->doc ?? 'docs/en/attributes/AsRequest.md';
+    }
 }

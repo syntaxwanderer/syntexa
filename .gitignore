@@ -15,8 +15,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Cache
-var/cache/
+# Variable/temporary files (entire directory)
+var/
 
 # Environment
 .env.local

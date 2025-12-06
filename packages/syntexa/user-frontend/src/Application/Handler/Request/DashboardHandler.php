@@ -36,9 +36,9 @@ class DashboardHandler implements HttpHandlerInterface
         // Set user data in response context
         $response->setContext([
             'user' => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'name' => $user->getName(),
             ],
             'title' => 'Dashboard',
         ]);

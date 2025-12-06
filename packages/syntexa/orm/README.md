@@ -33,15 +33,38 @@ DB_POOL_SIZE=10
 
 namespace Syntexa\UserFrontend\Domain\Entity;
 
-use Syntexa\Orm\Entity\BaseEntity;
 use Syntexa\Orm\Attributes\AsEntity;
+use Syntexa\Orm\Attributes\Column;
+use Syntexa\Orm\Entity\BaseEntity;
 
 #[AsEntity(table: 'users')]
 class User extends BaseEntity
 {
-    public string $email;
-    public string $name;
-    public string $passwordHash;
+    #[Column(name: 'email', unique: true)]
+    private string $email;
+
+    #[Column(name: 'name', nullable: true)]
+    private ?string $name = null;
+
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): void
+    {
+        $this->email = $email;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): void
+    {
+        $this->name = $name;
+    }
 }
 ```
 
@@ -98,7 +121,34 @@ class UserRepository
 }
 ```
 
-### 5. Query Builder
+### 5. Opt-in Timestamps
+
+```php
+use Syntexa\Orm\Entity\Traits\TimestampedEntityTrait;
+
+#[AsEntity(table: 'orders')]
+class Order extends BaseEntity
+{
+    use TimestampedEntityTrait;
+
+    #[Column(type: 'string')]
+    private string $number;
+
+    public function getNumber(): string
+    {
+        return $this->number;
+    }
+
+    public function setNumber(string $number): void
+    {
+        $this->number = $number;
+    }
+}
+```
+
+EntityManager automatically fills `created_at` / `updated_at` columns when the properties exist, so mixing the trait in is all you need.
+
+### 6. Query Builder
 
 ```php
 $users = $em->createQueryBuilder()
@@ -114,7 +164,8 @@ $users = $em->createQueryBuilder()
 
 - **ConnectionPool** - Singleton, manages PostgreSQL connections via Swoole PDOPool
 - **EntityManager** - Request-scoped, stateless, provides CRUD operations
-- **BaseEntity** - Base class for all entities with `toArray()` and `fromArray()`
+- **BaseEntity** - Base class for common ID handling (attributes pre-configured)
+- **Metadata** - Attribute-driven mapping (`#[Column]`, `#[Id]`, `#[TimestampColumn]`)
 - **QueryBuilder** - DQL-like query builder
 - **AsyncQueryBuilder** - For coroutine-based async queries
 

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Syntexa\UserFrontend\Domain\Entity;
 
-use Syntexa\Orm\Entity\BaseEntity;
 use Syntexa\Orm\Attributes\AsEntity;
+use Syntexa\Orm\Attributes\Column;
+use Syntexa\Orm\Entity\BaseEntity;
+use Syntexa\Orm\Entity\Traits\TimestampedEntityTrait;
 
 /**
  * User domain entity
@@ -17,11 +19,36 @@ use Syntexa\Orm\Attributes\AsEntity;
 #[AsEntity(table: 'users')]
 class User extends BaseEntity
 {
-    public string $email = '';
-    private string $passwordHash = '';
-    public string $name = '';
+    use TimestampedEntityTrait;
 
-    // No constructor needed - BaseEntity properties are public and nullable
+    #[Column(name: 'email', type: 'string', unique: true)]
+    private string $email = '';
+
+    #[Column(name: 'password_hash', type: 'string')]
+    private string $passwordHash = '';
+
+    #[Column(name: 'name', type: 'string', nullable: true)]
+    private ?string $name = null;
+
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): void
+    {
+        $this->email = $email;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): void
+    {
+        $this->name = $name;
+    }
 
     /**
      * Verify password
@@ -55,53 +82,5 @@ class User extends BaseEntity
         return $this->passwordHash;
     }
 
-    /**
-     * Convert to array for storage
-     * Override to handle password_hash field name mapping
-     */
-    public function toArray(): array
-    {
-        $data = parent::toArray();
-        
-        // Map passwordHash to password_hash for database
-        if (isset($data['passwordHash'])) {
-            $data['password_hash'] = $data['passwordHash'];
-            unset($data['passwordHash']);
-        }
-        
-        // BaseEntity already handles DateTimeImmutable -> string conversion
-        // But we need to map camelCase to snake_case for database
-        $mapped = [];
-        foreach ($data as $key => $value) {
-            // Convert camelCase to snake_case
-            $snakeKey = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $key));
-            $mapped[$snakeKey] = $value;
-        }
-        
-        return $mapped;
-    }
-
-    /**
-     * Hydrate entity from array
-     * Override to handle password_hash field name mapping
-     */
-    public function fromArray(array $data): void
-    {
-        // Map snake_case to camelCase
-        $mapped = [];
-        foreach ($data as $key => $value) {
-            // Convert snake_case to camelCase
-            $camelKey = lcfirst(str_replace('_', '', ucwords($key, '_')));
-            $mapped[$camelKey] = $value;
-        }
-        
-        // Map password_hash to passwordHash explicitly
-        if (isset($mapped['passwordHash'])) {
-            // Already mapped
-        } elseif (isset($data['password_hash'])) {
-            $mapped['passwordHash'] = $data['password_hash'];
-        }
-        
-        parent::fromArray($mapped);
-    }
+    // Custom toArray/fromArray no longer required thanks to column attributes.
 }
