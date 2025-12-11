@@ -43,6 +43,13 @@ class Application
     
     public function handleRequest(Request $request): Response
     {
+        $runId = 'initial';
+        $segmentStart = microtime(true);
+        $this->debugLog('H1', 'Application::handleRequest', 'request_received', [
+            'path' => $request->getPath(),
+            'method' => $request->getMethod(),
+        ], $runId);
+        
         // Clear superglobals for security (prevent accidental use of unvalidated data)
         \Syntexa\Core\Http\SecurityHelper::clearSuperglobals();
         
@@ -51,6 +58,13 @@ class Application
         
         // Try to find route using AttributeDiscovery
         $route = AttributeDiscovery::findRoute($request->getPath(), $request->getMethod());
+        $this->debugLog('H1', 'Application::handleRequest', 'route_discovery', [
+            'path' => $request->getPath(),
+            'method' => $request->getMethod(),
+            'routeFound' => (bool) $route,
+            'duration_ms' => round((microtime(true) - $segmentStart) * 1000, 2),
+        ], $runId);
+        $segmentStart = microtime(true);
         
         if (!$route) {
             echo "⚠️  No route found for: {$request->getPath()} ({$request->getMethod()})\n";
@@ -76,10 +90,12 @@ class Application
         try {
             // Request/Handler flow
             if (($route['type'] ?? null) === 'http-request') {
+                $runId = 'initial';
                 echo "🔄 Processing request route\n";
                 $requestClass = $route['class'];
                 $responseClass = $route['responseClass'] ?? null;
                 $handlerClasses = $route['handlers'] ?? [];
+                $segmentStart = microtime(true);
 
                 echo "📦 Request class: {$requestClass}\n";
                 echo "📦 Response class: " . ($responseClass ?? 'null') . "\n";
@@ -103,6 +119,11 @@ class Application
                     echo "⚠️  Error hydrating Request DTO: " . $e->getMessage() . "\n";
                     // Continue with empty DTO if hydration fails
                 }
+                $this->debugLog('H2', 'Application::handleRoute', 'request_hydrated', [
+                    'requestClass' => $requestClass,
+                    'duration_ms' => round((microtime(true) - $segmentStart) * 1000, 2),
+                ], $runId);
+                $segmentStart = microtime(true);
                 
                 $resDto = ($responseClass && class_exists($responseClass)) ? new $responseClass() : null;
 
@@ -197,6 +218,7 @@ class Application
                     // Use request-scoped container to resolve handler dependencies
                     // This ensures handlers get fresh instances for each request
                     try {
+                        $handlerStart = microtime(true);
                         $handler = $this->requestScopedContainer->get($handlerClass);
                         
                         // Verify that properties are injected (especially important in Swoole)
@@ -224,6 +246,10 @@ class Application
                     
                     if (method_exists($handler, 'handle')) {
                         $resDto = $handler->handle($reqDto, $resDto);
+                        $this->debugLog('H2', 'Application::handleRoute', 'handler_completed', [
+                            'handler' => $handlerClass,
+                            'duration_ms' => round((microtime(true) - $handlerStart) * 1000, 2),
+                        ], $runId);
                         echo "✅ Handler executed: {$handlerClass}\n";
                     }
                 }
@@ -232,6 +258,7 @@ class Application
                 if (method_exists($resDto, 'getRenderHandle')) {
                     $handle = $resDto->getRenderHandle();
                     if ($handle) {
+                        $renderStart = microtime(true);
                         $context = method_exists($resDto, 'getRenderContext') ? $resDto->getRenderContext() : [];
                         $format = method_exists($resDto, 'getRenderFormat') ? $resDto->getRenderFormat() : null;
                         if ($format === null) {
@@ -263,6 +290,12 @@ class Application
                         } else {
                             // raw/no-op
                         }
+                        $this->debugLog('H3', 'Application::handleRoute', 'render_completed', [
+                            'handle' => $handle,
+                            'format' => is_object($format) && property_exists($format, 'value') ? $format->value : $format,
+                            'renderer' => $rendererClass ?: ($renderer ?? null),
+                            'duration_ms' => round((microtime(true) - $renderStart) * 1000, 2),
+                        ], $runId);
                     }
                 }
 
@@ -320,5 +353,25 @@ class Application
     private function notFound(Request $request): Response
     {
         return Response::notFound('The requested resource was not found');
+    }
+
+    private function debugLog(string $hypothesisId, string $location, string $message, array $data, string $runId): void
+    {
+        // #region agent log
+        $payload = [
+            'sessionId' => 'debug-session',
+            'runId' => $runId,
+            'hypothesisId' => $hypothesisId,
+            'location' => $location,
+            'message' => $message,
+            'data' => $data,
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ];
+        @file_put_contents(
+            '/home/taras/Documents/Projects/syntexa/.cursor/debug.log',
+            json_encode($payload) . "\n",
+            FILE_APPEND
+        );
+        // #endregion
     }
 }

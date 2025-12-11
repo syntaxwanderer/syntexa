@@ -17,6 +17,8 @@ class EntityMetadataFactory
 {
     /** @var array<class-string, EntityMetadata> */
     private static array $cache = [];
+    /** @var array<class-string, class-string> domainClass => entityClass */
+    private static array $domainToEntity = [];
 
     public static function getMetadata(string $className): EntityMetadata
     {
@@ -83,11 +85,23 @@ class EntityMetadataFactory
             className: $className,
             tableName: $table,
             columns: $columns,
-            identifier: $identifier
+            identifier: $identifier,
+            domainClass: $entityAttr->domainClass,
+            mapperClass: $entityAttr->mapper,
+            repositoryClass: $entityAttr->repositoryClass
         );
+
+        if ($entityAttr->domainClass) {
+            self::$domainToEntity[$entityAttr->domainClass] = $className;
+        }
 
         self::$cache[$className] = $metadata;
         return $metadata;
+    }
+
+    public static function resolveEntityClassForDomain(string $domainClass): ?string
+    {
+        return self::$domainToEntity[$domainClass] ?? null;
     }
 
     private static function defaultTableName(string $entityClass): string

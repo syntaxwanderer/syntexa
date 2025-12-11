@@ -25,6 +25,9 @@ class AsEntity implements DocumentedAttributeInterface
         ?string $doc = null,
         public ?string $table = null,
         public ?string $schema = null,
+        public ?string $domainClass = null,
+        public ?string $mapper = null,
+        public ?string $repositoryClass = null,
     ) {
         $this->doc = $doc;
     }

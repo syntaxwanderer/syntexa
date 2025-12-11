@@ -14,6 +14,9 @@ class EntityMetadata
         public readonly string $tableName,
         public readonly array $columns,
         public readonly ?ColumnMetadata $identifier,
+        public readonly ?string $domainClass = null,
+        public readonly ?string $mapperClass = null,
+        public readonly ?string $repositoryClass = null,
     ) {
     }
 }

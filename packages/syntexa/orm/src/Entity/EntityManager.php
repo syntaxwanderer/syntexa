@@ -10,6 +10,9 @@ use Syntexa\Orm\Metadata\EntityMetadata;
 use Syntexa\Orm\Metadata\EntityMetadataFactory;
 use Syntexa\Orm\Query\QueryBuilder;
 use Syntexa\Orm\Attributes\TimestampColumn;
+use Syntexa\Orm\Mapping\DomainContext;
+use Syntexa\Orm\Mapping\DomainMapperInterface;
+use Syntexa\Orm\Mapping\DefaultDomainMapper;
 
 /**
  * Stateless Entity Manager
@@ -25,13 +28,16 @@ class EntityManager
     private array $unitOfWork = []; // Track entities for flush
     /** @var array<class-string, EntityMetadata> */
     private array $entityMetadata = [];
+    private DomainContext $domainContext;
+    private ?DomainMapperInterface $defaultMapper = null;
 
     /**
      * @param PDO|object|null $connection Connection (PDO in CLI, PDOProxy in Swoole)
      */
-    public function __construct($connection = null)
+    public function __construct($connection = null, ?DomainContext $domainContext = null)
     {
         $this->connection = $connection ?? ConnectionPool::get();
+        $this->domainContext = $domainContext ?? new DomainContext();
     }
 
     /**
@@ -58,7 +64,7 @@ class EntityManager
             return null;
         }
         
-        return $this->hydrateEntity($metadata, $data);
+        return $this->mapDomainIfNeeded($metadata, $this->hydrateStorageEntity($metadata, $data));
     }
 
     /**
@@ -113,7 +119,7 @@ class EntityManager
         
         $entities = [];
         foreach ($results as $data) {
-            $entities[] = $this->hydrateEntity($metadata, $data);
+            $entities[] = $this->mapDomainIfNeeded($metadata, $this->hydrateStorageEntity($metadata, $data));
         }
         
         return $entities;
@@ -136,8 +142,9 @@ class EntityManager
         if (!is_object($entity)) {
             throw new \InvalidArgumentException('Entity must be an object');
         }
-        
-        $this->unitOfWork[] = $entity;
+
+        $storage = $this->ensureStorageEntity($entity);
+        $this->unitOfWork[] = $storage;
     }
 
     /**
@@ -157,7 +164,8 @@ class EntityManager
      */
     public function remove(object $entity): void
     {
-        $entityClass = get_class($entity);
+        $storage = $this->ensureStorageEntity($entity);
+        $entityClass = get_class($storage);
         $metadata = $this->getEntityMetadata($entityClass);
         $table = $metadata->tableName;
 
@@ -166,7 +174,7 @@ class EntityManager
             throw new \RuntimeException("Cannot remove entity {$entityClass} without identifier.");
         }
 
-        $idValue = $identifier->getValue($entity);
+        $idValue = $identifier->getValue($storage);
         if ($idValue === null) {
             throw new \RuntimeException('Cannot remove entity without ID');
         }
@@ -214,7 +222,7 @@ class EntityManager
     /**
      * Hydrate entity from database row
      */
-    private function hydrateEntity(EntityMetadata $metadata, array $data): object
+    private function hydrateStorageEntity(EntityMetadata $metadata, array $data): object
     {
         $entityClass = $metadata->className;
         $entity = new $entityClass();
@@ -309,6 +317,61 @@ class EntityManager
     public function getConnection()
     {
         return $this->connection;
+    }
+
+    private function mapDomainIfNeeded(EntityMetadata $metadata, object $storage): object
+    {
+        if ($metadata->domainClass === null) {
+            return $storage;
+        }
+
+        $mapper = $this->getMapper($metadata);
+        $domain = $mapper->toDomain($storage, $metadata, $this->domainContext);
+
+        return $domain;
+    }
+
+    private function getMapper(EntityMetadata $metadata): DomainMapperInterface
+    {
+        if ($metadata->mapperClass) {
+            return new ($metadata->mapperClass)();
+        }
+
+        if ($this->defaultMapper === null) {
+            $this->defaultMapper = new DefaultDomainMapper();
+        }
+
+        return $this->defaultMapper;
+    }
+
+    private function ensureStorageEntity(object $entity): object
+    {
+        $entityClass = get_class($entity);
+        try {
+            // If it's already a storage entity, metadata will load fine.
+            $this->getEntityMetadata($entityClass);
+            return $entity;
+        } catch (\RuntimeException) {
+            // Not a storage entity; try mapping from domain to storage.
+        }
+
+        $storageClass = EntityMetadataFactory::resolveEntityClassForDomain($entityClass);
+        if ($storageClass === null) {
+            throw new \RuntimeException("Cannot resolve storage entity for domain class {$entityClass}");
+        }
+
+        $storageMetadata = $this->getEntityMetadata($storageClass);
+        $mapper = $this->getMapper($storageMetadata);
+
+        // Reuse existing storage if domain was previously mapped
+        $domainId = spl_object_id($entity);
+        if (isset($this->domainContext->domainToStorage[$domainId])) {
+            $storage = $this->domainContext->domainToStorage[$domainId];
+        } else {
+            $storage = new $storageClass();
+        }
+
+        return $mapper->toStorage($entity, $storage, $storageMetadata, $this->domainContext);
     }
 }
 

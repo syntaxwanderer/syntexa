@@ -20,6 +20,7 @@ class QueryBuilder
     private array $orderBy = [];
     private ?int $limit = null;
     private ?int $offset = null;
+    private array $aliases = [];
 
     /**
      * @param PDO|object $connection Connection (PDO in CLI, PDOProxy in Swoole)
@@ -56,6 +57,35 @@ class QueryBuilder
         $table = $attr->table ?? $this->getDefaultTableName($entityClass);
         
         $this->from = "{$table} AS {$alias}";
+        $this->aliases[$alias] = $table;
+        return $this;
+    }
+
+    /**
+     * INNER JOIN
+     */
+    public function join(string $tableOrExpr, string $alias, ?string $on = null): self
+    {
+        $clause = "INNER JOIN {$tableOrExpr} AS {$alias}";
+        if ($on) {
+            $clause .= " ON {$on}";
+        }
+        $this->joins[] = $clause;
+        $this->aliases[$alias] = $tableOrExpr;
+        return $this;
+    }
+
+    /**
+     * LEFT JOIN
+     */
+    public function leftJoin(string $tableOrExpr, string $alias, ?string $on = null): self
+    {
+        $clause = "LEFT JOIN {$tableOrExpr} AS {$alias}";
+        if ($on) {
+            $clause .= " ON {$on}";
+        }
+        $this->joins[] = $clause;
+        $this->aliases[$alias] = $tableOrExpr;
         return $this;
     }
 

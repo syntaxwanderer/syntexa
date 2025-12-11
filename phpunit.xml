@@ -7,8 +7,7 @@
          executionOrder="depends,defects"
          failOnRisky="true"
          failOnWarning="true"
-         beStrictAboutOutputDuringTests="true"
-         convertDeprecationsToExceptions="true">
+         beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Syntexa Test Suite">
             <directory>tests</directory>

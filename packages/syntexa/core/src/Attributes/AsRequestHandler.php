@@ -20,12 +20,12 @@ class AsRequestHandler implements DocumentedAttributeInterface
     public readonly ?string $doc;
 
     public function __construct(
-        ?string $doc = null,
         public string $for,
         public HandlerExecution|string|null $execution = null,
         public ?string $transport = null,
         public ?string $queue = null,
         public ?int $priority = null,
+        ?string $doc = null,
     ) {
         $this->doc = $doc;
     }
