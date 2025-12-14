@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\Tests\Examples\Fixtures\Domain;
+namespace Syntexa\Tests\Examples\Fixtures\User;
 
-class UserDomain
+class Domain
 {
     private ?int $id;
     private string $email;

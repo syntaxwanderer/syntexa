@@ -32,7 +32,6 @@ class QueueDispatcher
         $transport = QueueTransportRegistry::create($transportName);
         $transport->publish($queueName, $message->toJson());
 
-        echo "📨 Queued handler {$handlerMeta['class']} via {$transportName} ({$queueName})\n";
     }
 }
 

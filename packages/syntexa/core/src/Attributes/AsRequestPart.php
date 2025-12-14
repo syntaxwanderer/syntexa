@@ -22,11 +22,11 @@ class AsRequestPart implements DocumentedAttributeInterface
     public readonly ?string $doc;
 
     public function __construct(
-        ?string $doc = null,
         /**
          * Fully-qualified class name of the base request that this part targets.
          */
-        public string $base
+        public string $base,
+        ?string $doc = null
     ) {
         $this->doc = $doc;
     }

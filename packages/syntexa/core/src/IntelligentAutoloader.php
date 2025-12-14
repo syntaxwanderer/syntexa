@@ -47,14 +47,11 @@ class IntelligentAutoloader
             return;
         }
         
-        echo "🧠 Initializing Intelligent Autoloader...\n";
         
         $startTime = microtime(true);
         self::buildClassMap();
         $endTime = microtime(true);
         
-        echo "✅ Discovered " . count(self::$classMap) . " classes\n";
-        echo "⏱️  Class discovery took " . round(($endTime - $startTime) * 1000, 2) . "ms\n";
         
         // Register autoloader only if not already registered
         if (!in_array([self::class, 'autoload'], spl_autoload_functions())) {

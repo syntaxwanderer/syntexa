@@ -1,0 +1,19 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: syntexa-postgres-test
+    environment:
+      # Use values from .env file, with fallback to test defaults
+      POSTGRES_USER: ${DB_USER:-test}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
+      POSTGRES_DB: ${DB_NAME:-syntexa}_test  # Append _test to avoid using production DB
+    ports:
+      - "${DB_PORT:-5433}:5432"  # Use port from .env or default 5433
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-test}"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data  # Use tmpfs for faster tests (data lost on container stop)
+

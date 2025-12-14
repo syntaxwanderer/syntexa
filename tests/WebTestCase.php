@@ -117,7 +117,7 @@ abstract class WebTestCase extends TestCase
     /**
      * Assert that the response is JSON and contains expected data
      */
-    protected function assertResponseJson(Response $response, array $expectedData = null, string $message = ''): void
+    protected function assertResponseJson(Response $response, ?array $expectedData = null, string $message = ''): void
     {
         $headers = $response->getHeaders();
         $contentType = $headers['Content-Type'] ?? '';

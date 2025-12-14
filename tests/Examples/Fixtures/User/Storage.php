@@ -2,21 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\Tests\Examples\Fixtures\Storage;
+namespace Syntexa\Tests\Examples\Fixtures\User;
 
 use Syntexa\Orm\Attributes\AsEntity;
 use Syntexa\Orm\Attributes\Column;
 use Syntexa\Orm\Attributes\Id;
 use Syntexa\Orm\Attributes\GeneratedValue;
-use Syntexa\Tests\Examples\Fixtures\Domain\UserDomain;
-use Syntexa\Tests\Examples\Fixtures\Repository\UserRepository;
 
 #[AsEntity(
     table: 'users',
-    domainClass: UserDomain::class,
-    repositoryClass: UserRepository::class
+    domainClass: Domain::class,
+    repositoryClass: Repository::class
 )]
-class UserStorage
+class Storage
 {
     #[Id]
     #[GeneratedValue]

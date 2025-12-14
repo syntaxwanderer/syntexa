@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Syntexa PHPUnit wrapper
+ * Simplifies running tests: ./bin/phpunit instead of ./vendor/bin/phpunit
+ */
+
+$scriptDir = __DIR__;
+$projectRoot = dirname($scriptDir);
+
+chdir($projectRoot) || exit(1);
+
+$phpunitPath = $projectRoot . '/vendor/bin/phpunit';
+
+if (!file_exists($phpunitPath)) {
+    fwrite(STDERR, "Error: PHPUnit not found at {$phpunitPath}\n");
+    fwrite(STDERR, "Run: composer install\n");
+    exit(1);
+}
+
+// Get all command line arguments except script name
+$args = array_slice($argv, 1);
+
+// Build command
+$command = escapeshellarg($phpunitPath);
+foreach ($args as $arg) {
+    $command .= ' ' . escapeshellarg($arg);
+}
+
+// Execute
+passthru($command, $exitCode);
+exit($exitCode);

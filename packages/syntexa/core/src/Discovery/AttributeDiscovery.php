@@ -43,8 +43,6 @@ class AttributeDiscovery
             return;
         }
         
-        echo "🔍 Discovering attributes...\n";
-        
         $startTime = microtime(true);
         
         // Initialize intelligent autoloader first
@@ -57,10 +55,6 @@ class AttributeDiscovery
         self::scanAttributesIntelligently();
         
         $endTime = microtime(true);
-        
-        echo "✅ Found " . count(self::$routes) . " routes\n";
-        echo "✅ Found " . count(self::$httpRequests) . " requests\n";
-        echo "⏱️  Discovery took " . round(($endTime - $startTime) * 1000, 2) . "ms\n";
         
         self::$initialized = true;
     }
@@ -78,28 +72,21 @@ class AttributeDiscovery
      */
     public static function findRoute(string $path, string $method = 'GET'): ?array
     {
-        echo "🔍 Looking for route: {$path} ({$method})\n";
         foreach (self::$routes as $route) {
             if ($route['path'] === $path && in_array($method, $route['methods'])) {
-                echo "✅ Found matching route: {$route['path']}\n";
                 // enrich with request handlers if applicable
                 if (($route['type'] ?? null) === 'http-request') {
                     $reqClass = $route['class'];
-                    echo "📦 Enriching request route with class: {$reqClass}\n";
                     $extra = self::$httpRequests[$reqClass] ?? null;
                     if ($extra) {
                         $route['handlers'] = $extra['handlers'];
                         $route['responseClass'] = $extra['responseClass'];
-                        echo "✅ Enriched with " . count($extra['handlers']) . " handlers\n";
-                    } else {
-                        echo "⚠️  No extra data found for request class: {$reqClass}\n";
                     }
                 }
                 return $route;
             }
         }
         
-        echo "⚠️  No route found for {$path} ({$method})\n";
         return null;
     }
     
@@ -123,7 +110,6 @@ class AttributeDiscovery
             IntelligentAutoloader::findClassesWithAttribute(AsRequest::class),
             fn ($class) => str_starts_with($class, 'Syntexa\\')
         );
-        echo "🔍 Found " . count($httpRequestClasses) . " request classes\n";
         $requestMeta = [];
         $requestGroups = [];
         foreach ($httpRequestClasses as $className) {
@@ -157,7 +143,7 @@ class AttributeDiscovery
                 $groupKey = $meta['attr']['base'] ?? $className;
                 $requestGroups[$groupKey][] = $meta;
             } catch (\Throwable $e) {
-                echo "⚠️  Error analyzing request {$className}: " . $e->getMessage() . "\n";
+                // Silently skip on error
             }
         }
 
@@ -167,7 +153,6 @@ class AttributeDiscovery
         foreach ($requestGroups as $baseClass => $candidates) {
             $projectCandidates = array_values(array_filter($candidates, fn ($c) => self::isProjectRequest($c['file'])));
             if (empty($projectCandidates)) {
-                echo "⚠️  Skipping request '{$baseClass}' – generate wrapper in src/ to activate it.\n";
                 continue;
             }
             usort($projectCandidates, fn ($a, $b) => $b['priority'] <=> $a['priority']);
@@ -199,7 +184,6 @@ class AttributeDiscovery
                 'type' => 'http-request'
             ];
 
-            echo "✅ Registered request: {$resolved['path']} -> {$selected['class']} (source: {$selected['file']})\n";
 
             foreach ($candidates as $candidate) {
                 self::$requestClassAliases[$candidate['class']] = $selected['class'];
@@ -214,7 +198,6 @@ class AttributeDiscovery
             IntelligentAutoloader::findClassesWithAttribute(AsRequestHandler::class),
             fn ($class) => str_starts_with($class, 'Syntexa\\')
         );
-        echo "🔍 Found " . count($httpHandlerClasses) . " request handler classes\n";
         foreach ($httpHandlerClasses as $className) {
             try {
                 $class = new ReflectionClass($className);
@@ -238,17 +221,13 @@ class AttributeDiscovery
                         'queue' => $queue ?: null,
                         'priority' => $priority,
                     ];
-                    echo "🔗 Handler: {$class->getName()} -> for: {$for} ({$handlerMeta['execution']})\n";
                     self::$httpHandlers[$class->getName()] = $handlerMeta;
                     if (isset(self::$httpRequests[$for])) {
                         self::$httpRequests[$for]['handlers'][] = $handlerMeta;
-                        echo "✅ Mapped handler {$class->getName()} to request {$for}\n";
-                    } else {
-                        echo "⚠️  Request class not found for handler: {$for}\n";
                     }
                 }
             } catch (\Throwable $e) {
-                echo "⚠️  Error analyzing request handler {$className}: " . $e->getMessage() . "\n";
+                // Silently skip on error
             }
         }
 
@@ -259,7 +238,6 @@ class AttributeDiscovery
         ) {
             $slotAttribute = 'Syntexa\\Frontend\\Attributes\\AsLayoutSlot';
             $slotClasses = IntelligentAutoloader::findClassesWithAttribute($slotAttribute);
-            echo "🔍 Found " . count($slotClasses) . " layout slot contributors\n";
             foreach ($slotClasses as $className) {
                 try {
                     $class = new \ReflectionClass($className);
@@ -279,10 +257,9 @@ class AttributeDiscovery
                             is_array($context) ? $context : [],
                             $priority
                         );
-                        echo "✅ Registered layout slot {$slot} for {$handle} via {$className}\n";
                     }
                 } catch (\Throwable $e) {
-                    echo "⚠️  Error analyzing layout slot {$className}: " . $e->getMessage() . "\n";
+                    // Silently skip on error
                 }
             }
         }
@@ -349,7 +326,6 @@ class AttributeDiscovery
         if (empty($responseClasses)) {
             return;
         }
-        echo "🔍 Found " . count($responseClasses) . " response classes\n";
 
         $responseMeta = [];
         $responseGroups = [];
@@ -379,7 +355,7 @@ class AttributeDiscovery
                 $groupKey = $meta['attr']['base'] ?? $className;
                 $responseGroups[$groupKey][] = $meta;
             } catch (\Throwable $e) {
-                echo "⚠️  Error analyzing response {$className}: " . $e->getMessage() . "\n";
+                // Silently skip on error
             }
         }
 
@@ -520,7 +496,7 @@ class AttributeDiscovery
                 $o = $attrs[0]->newInstance();
                 $overrides[] = ['meta' => $o, 'file' => $file, 'class' => $className];
             } catch (\Throwable $e) {
-                echo "⚠️  Error analyzing response override {$className}: " . $e->getMessage() . "\n";
+                // Silently skip on error
             }
         }
         if (empty($overrides)) {
@@ -555,7 +531,6 @@ class AttributeDiscovery
                 self::$resolvedResponseAttrs[$canonical] = $current;
                 self::$responseAttrOverrides[$canonical] = $attrs;
             }
-            echo "🔧 Collected response override for {$target}\n";
         }
     }
     
@@ -578,7 +553,6 @@ class AttributeDiscovery
         $modules = ModuleRegistry::getModules();
         
         foreach ($modules as $module) {
-            echo "🔍 Scanning module: {$module['name']} ({$module['type']})\n";
             
             $files = self::getAllPhpFiles($module['path']);
             

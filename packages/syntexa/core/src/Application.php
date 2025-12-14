@@ -66,11 +66,7 @@ class Application
         ], $runId);
         $segmentStart = microtime(true);
         
-        if (!$route) {
-            echo "⚠️  No route found for: {$request->getPath()} ({$request->getMethod()})\n";
-        } else {
-            echo "✅ Found route: {$route['path']} -> {$route['class']}\n";
-        }
+        // Route found or not - no debug output needed
         
         if ($route) {
             return $this->handleRoute($route, $request);
@@ -91,15 +87,10 @@ class Application
             // Request/Handler flow
             if (($route['type'] ?? null) === 'http-request') {
                 $runId = 'initial';
-                echo "🔄 Processing request route\n";
                 $requestClass = $route['class'];
                 $responseClass = $route['responseClass'] ?? null;
                 $handlerClasses = $route['handlers'] ?? [];
                 $segmentStart = microtime(true);
-
-                echo "📦 Request class: {$requestClass}\n";
-                echo "📦 Response class: " . ($responseClass ?? 'null') . "\n";
-                echo "📦 Handlers: " . count($handlerClasses) . "\n";
 
                 // Instantiate DTOs
                 $reqDto = class_exists($requestClass) ? new $requestClass() : null;
@@ -114,9 +105,7 @@ class Application
                     if (method_exists($reqDto, 'setHttpRequest')) {
                         $reqDto->setHttpRequest($request);
                     }
-                    echo "✅ Hydrated Request DTO: {$requestClass}\n";
                 } catch (\Throwable $e) {
-                    echo "⚠️  Error hydrating Request DTO: " . $e->getMessage() . "\n";
                     // Continue with empty DTO if hydration fails
                 }
                 $this->debugLog('H2', 'Application::handleRoute', 'request_hydrated', [
@@ -129,7 +118,6 @@ class Application
 
                 // Fallback generic response if none supplied
                 if ($resDto === null) {
-                    echo "⚠️  Using fallback GenericResponse\n";
                     $resDto = new \Syntexa\Core\Http\Response\GenericResponse();
                 }
 
@@ -209,9 +197,7 @@ class Application
                         continue;
                     }
 
-                    echo "🔄 Executing handler: {$handlerClass}\n";
                     if (!class_exists($handlerClass)) {
-                        echo "⚠️  Handler class not found: {$handlerClass}\n";
                         continue;
                     }
                     
@@ -239,8 +225,6 @@ class Application
                     } catch (\Throwable $e) {
                         // Don't fallback to direct instantiation - it won't work with property injection
                         // Instead, throw the error so we can see what's wrong
-                        echo "❌ DI resolution failed for {$handlerClass}: {$e->getMessage()}\n";
-                        echo "Stack trace: " . $e->getTraceAsString() . "\n";
                         throw new \RuntimeException("Failed to resolve handler {$handlerClass}: " . $e->getMessage(), 0, $e);
                     }
                     
@@ -250,7 +234,6 @@ class Application
                             'handler' => $handlerClass,
                             'duration_ms' => round((microtime(true) - $handlerStart) * 1000, 2),
                         ], $runId);
-                        echo "✅ Handler executed: {$handlerClass}\n";
                     }
                 }
 
@@ -279,6 +262,15 @@ class Application
                             // Use provided renderer or default LayoutRenderer
                             $renderer = $rendererClass ?: 'Syntexa\\Frontend\\Layout\\LayoutRenderer';
                             if (class_exists($renderer) && method_exists($renderer, 'renderHandle')) {
+                                // Automatically wrap context in 'response' key if not already present
+                                // This allows templates to access context as response.error, response.data, etc.
+                                if (!isset($context['response'])) {
+                                    $context = ['response' => $context] + $context;
+                                }
+                                // Add request to context if available
+                                if (!isset($context['request']) && isset($reqDto)) {
+                                    $context['request'] = $reqDto;
+                                }
                                 $html = $renderer::renderHandle($handle, $context);
                                 if (method_exists($resDto, 'setContent')) {
                                     $resDto->setContent($html);
@@ -302,18 +294,15 @@ class Application
                 // Adapt to core Response
                 // If handler returned a Core Response directly, use it
                 if ($resDto instanceof \Syntexa\Core\Response) {
-                    echo "✅ Handler returned Core Response directly\n";
                     return $resDto;
                 }
                 
                 // If response DTO has toCoreResponse method, use it
                 if (method_exists($resDto, 'toCoreResponse')) {
-                    echo "✅ Converting to Core Response\n";
                     return $resDto->toCoreResponse();
                 }
                 
                 // Generic fallback
-                echo "⚠️  Using generic JSON fallback\n";
                 return Response::json(['ok' => true]);
             }
 
@@ -323,8 +312,6 @@ class Application
             $response = $method === '__invoke' ? $controller() : $controller->$method();
             return $response;
         } catch (\Throwable $e) {
-            echo "❌ Error in handleRoute: " . $e->getMessage() . "\n";
-            echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
             return \Syntexa\Core\Http\ErrorRenderer::render($e, $request);
         }
     }

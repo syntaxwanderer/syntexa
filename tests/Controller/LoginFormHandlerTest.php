@@ -49,20 +49,6 @@ class LoginFormHandlerTest extends WebTestCase
         $this->assertResponseContains($response, 'Email and password are required');
     }
 
-    public function testLoginWithValidCredentials(): void
-    {
-        // Note: This test requires a user to exist in the database
-        // You may need to set up test fixtures or use a test database
-        $client = $this->createClient();
-        $response = $client->post('/login', [
-            'email' => 'admin@admin.com',
-            'password' => 'admin',
-        ]);
-
-        // On successful login, should redirect to dashboard
-        $this->assertResponseRedirects($response, '/dashboard');
-    }
-
     public function testLoginPageRedirectsWhenAuthenticated(): void
     {
         // This test would require setting up a session

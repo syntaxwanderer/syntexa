@@ -26,14 +26,11 @@ class ModuleRegistry
             return;
         }
         
-        echo "🔍 Discovering modules...\n";
         
         $startTime = microtime(true);
         self::discoverModules();
         $endTime = microtime(true);
         
-        echo "✅ Found " . count(self::$modules) . " modules\n";
-        echo "⏱️  Module discovery took " . round(($endTime - $startTime) * 1000, 2) . "ms\n";
         
         self::$initialized = true;
     }
@@ -231,7 +228,6 @@ class ModuleRegistry
             'autoloadPsr4' => self::resolveAutoloadPsr4($path, $meta['autoload_psr4'] ?? [])
         ];
         
-        echo "📦 Registered {$type} module: {$name} ({$namespace})\n";
     }
 
     private static function readComposerType(string $modulePath): ?string

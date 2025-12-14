@@ -12,6 +12,11 @@ use Syntexa\Orm\Attributes\Column;
 use Syntexa\Orm\Attributes\GeneratedValue;
 use Syntexa\Orm\Attributes\Id;
 use Syntexa\Orm\Attributes\TimestampColumn;
+use Syntexa\Orm\Attributes\OneToOne;
+use Syntexa\Orm\Attributes\OneToMany;
+use Syntexa\Orm\Attributes\ManyToOne;
+use Syntexa\Orm\Attributes\ManyToMany;
+use Syntexa\Orm\Attributes\JoinColumn;
 
 class EntityMetadataFactory
 {
@@ -81,6 +86,9 @@ class EntityMetadataFactory
             throw new \RuntimeException("Entity {$className} has no mapped properties. Add #[Column] or #[Id].");
         }
 
+        // Extract relationship metadata
+        $relationships = self::extractRelationships($reflection);
+
         $metadata = new EntityMetadata(
             className: $className,
             tableName: $table,
@@ -88,7 +96,8 @@ class EntityMetadataFactory
             identifier: $identifier,
             domainClass: $entityAttr->domainClass,
             mapperClass: $entityAttr->mapper,
-            repositoryClass: $entityAttr->repositoryClass
+            repositoryClass: $entityAttr->repositoryClass,
+            relationships: $relationships
         );
 
         if ($entityAttr->domainClass) {
@@ -128,6 +137,81 @@ class EntityMetadataFactory
             return null;
         }
         return $attributes[0]->newInstance();
+    }
+
+    /**
+     * Extract relationship metadata from entity properties
+     * 
+     * @return array<string, RelationshipMetadata>
+     */
+    private static function extractRelationships(ReflectionClass $reflection): array
+    {
+        $relationships = [];
+
+        foreach ($reflection->getProperties() as $property) {
+            $oneToOne = self::getAttributeInstance($property, OneToOne::class);
+            $oneToMany = self::getAttributeInstance($property, OneToMany::class);
+            $manyToOne = self::getAttributeInstance($property, ManyToOne::class);
+            $manyToMany = self::getAttributeInstance($property, ManyToMany::class);
+
+            $joinColumnAttr = self::getAttributeInstance($property, JoinColumn::class);
+            $joinColumn = null;
+            if ($joinColumnAttr) {
+                $joinColumn = new JoinColumnMetadata(
+                    name: $joinColumnAttr->name,
+                    referencedColumnName: $joinColumnAttr->referencedColumnName,
+                    nullable: $joinColumnAttr->nullable
+                );
+            }
+
+            if ($oneToOne) {
+                $relationships[$property->getName()] = new RelationshipMetadata(
+                    propertyName: $property->getName(),
+                    type: 'OneToOne',
+                    targetEntity: $oneToOne->targetEntity,
+                    mappedBy: $oneToOne->mappedBy,
+                    joinColumn: $joinColumn,
+                    fetch: $oneToOne->fetch,
+                    cascade: $oneToOne->cascade,
+                    orphanRemoval: $oneToOne->orphanRemoval
+                );
+            } elseif ($oneToMany) {
+                $relationships[$property->getName()] = new RelationshipMetadata(
+                    propertyName: $property->getName(),
+                    type: 'OneToMany',
+                    targetEntity: $oneToMany->targetEntity,
+                    mappedBy: $oneToMany->mappedBy,
+                    joinColumn: $joinColumn,
+                    fetch: $oneToMany->fetch,
+                    cascade: $oneToMany->cascade,
+                    orphanRemoval: $oneToMany->orphanRemoval
+                );
+            } elseif ($manyToOne) {
+                $relationships[$property->getName()] = new RelationshipMetadata(
+                    propertyName: $property->getName(),
+                    type: 'ManyToOne',
+                    targetEntity: $manyToOne->targetEntity,
+                    mappedBy: $manyToOne->inversedBy, // ManyToOne uses inversedBy
+                    joinColumn: $joinColumn,
+                    fetch: $manyToOne->fetch,
+                    cascade: $manyToOne->cascade,
+                    orphanRemoval: false // ManyToOne doesn't support orphanRemoval
+                );
+            } elseif ($manyToMany) {
+                $relationships[$property->getName()] = new RelationshipMetadata(
+                    propertyName: $property->getName(),
+                    type: 'ManyToMany',
+                    targetEntity: $manyToMany->targetEntity,
+                    mappedBy: null, // ManyToMany uses joinTable, not mappedBy
+                    joinColumn: $joinColumn,
+                    fetch: $manyToMany->fetch,
+                    cascade: $manyToMany->cascade,
+                    orphanRemoval: false // ManyToMany doesn't support orphanRemoval
+                );
+            }
+        }
+
+        return $relationships;
     }
 }
 

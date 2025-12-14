@@ -338,7 +338,7 @@ class EntityManager
         }
 
         if ($this->defaultMapper === null) {
-            $this->defaultMapper = new DefaultDomainMapper();
+            $this->defaultMapper = new DefaultDomainMapper($this);
         }
 
         return $this->defaultMapper;
