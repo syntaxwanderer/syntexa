@@ -5,23 +5,31 @@ declare(strict_types=1);
 namespace Syntexa\Tests\Examples\Orm;
 
 use Syntexa\Tests\Examples\Fixtures\User\Storage;
+use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 class QueryBuilderJoinsTest extends OrmExampleTestCase
 {
     protected function createSchema(\PDO $pdo): void
     {
-        $primaryKey = $this->integerPrimaryKey();
-        $pdo->exec("CREATE TABLE users (
-            id {$primaryKey},
-            email TEXT NOT NULL,
-            name TEXT NULL,
-            address_id INTEGER NULL
-        )");
+        $schema = new SchemaBuilder();
 
-        $pdo->exec("CREATE TABLE addresses (
-            id {$primaryKey},
-            label TEXT NOT NULL
-        )");
+        foreach ($schema->createTable('users')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('email', 'VARCHAR(255)', ['notNull' => true])
+            ->addColumn('name', 'VARCHAR(255)')
+            ->addColumn('address_id', 'INTEGER')
+            ->addIndex('email', 'idx_users_email')
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
+
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('addresses')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('label', 'VARCHAR(255)', ['notNull' => true])
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
     }
 
     public function testJoinWithAlias(): void

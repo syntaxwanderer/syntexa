@@ -11,6 +11,7 @@ use Syntexa\Tests\Examples\Fixtures\Address\Domain as AddressDomain;
 use Syntexa\Tests\Examples\Fixtures\Address\Storage as AddressStorage;
 use Syntexa\Tests\Examples\Fixtures\Post\Domain as PostDomain;
 use Syntexa\Tests\Examples\Fixtures\Post\Storage as PostStorage;
+use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 /**
  * Relationships examples
@@ -28,44 +29,57 @@ class RelationshipsTest extends OrmExampleTestCase
 {
     protected function createSchema(\PDO $pdo): void
     {
-        $autoIncrement = $this->autoIncrementColumn();
-        
         // Users table
-        $pdo->exec("CREATE TABLE users (
-            id {$autoIncrement},
-            email TEXT NOT NULL,
-            name TEXT NULL,
-            address_id INTEGER NULL
-        )");
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('users')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('email', 'VARCHAR(255)', ['notNull' => true])
+            ->addColumn('name', 'VARCHAR(255)')
+            ->addColumn('address_id', 'INTEGER')
+            ->addIndex('email', 'idx_users_email')
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
 
         // Addresses table (OneToOne with User)
-        $pdo->exec("CREATE TABLE addresses (
-            id {$autoIncrement},
-            street TEXT NOT NULL,
-            city TEXT NOT NULL,
-            country TEXT NOT NULL
-        )");
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('addresses')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('street', 'VARCHAR(255)', ['notNull' => true])
+            ->addColumn('city', 'VARCHAR(255)', ['notNull' => true])
+            ->addColumn('country', 'VARCHAR(255)', ['notNull' => true])
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
 
         // Posts table (ManyToOne to User)
-        $pdo->exec("CREATE TABLE posts (
-            id {$autoIncrement},
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            user_id INTEGER NOT NULL
-        )");
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('posts')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('title', 'VARCHAR(255)', ['notNull' => true])
+            ->addColumn('content', 'TEXT', ['notNull' => true])
+            ->addColumn('user_id', 'INTEGER', ['notNull' => true])
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
 
         // Tags table (for ManyToMany)
-        $pdo->exec("CREATE TABLE tags (
-            id {$autoIncrement},
-            name TEXT NOT NULL UNIQUE
-        )");
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('tags')
+            ->addColumn('id', 'INTEGER', ['primary' => true])
+            ->addColumn('name', 'VARCHAR(255)', ['notNull' => true, 'unique' => true])
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
 
         // Join table for ManyToMany (User <-> Tag)
-        $pdo->exec("CREATE TABLE user_tags (
-            user_id INTEGER NOT NULL,
-            tag_id INTEGER NOT NULL,
-            PRIMARY KEY (user_id, tag_id)
-        )");
+        $schema = new SchemaBuilder();
+        foreach ($schema->createTable('user_tags')
+            ->addColumn('user_id', 'INTEGER', ['notNull' => true])
+            ->addColumn('tag_id', 'INTEGER', ['notNull' => true])
+            ->build() as $sql) {
+            $pdo->exec($sql);
+        }
     }
 
     /**
