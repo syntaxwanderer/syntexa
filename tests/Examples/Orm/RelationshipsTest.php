@@ -12,6 +12,7 @@ use Syntexa\Tests\Examples\Fixtures\Address\Storage as AddressStorage;
 use Syntexa\Tests\Examples\Fixtures\Post\Domain as PostDomain;
 use Syntexa\Tests\Examples\Fixtures\Post\Storage as PostStorage;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
+use function DI\autowire;
 
 /**
  * Relationships examples
@@ -294,8 +295,12 @@ class RelationshipsTest extends OrmExampleTestCase
         $this->em->persist($post2);
         $this->em->flush();
 
-        // Load user's posts using repository
-        $userRepo = new UserRepository($this->em);
+        // Load user's posts using repository resolved from DI container
+        $container = $this->createContainer([
+            UserRepository::class => autowire(UserRepository::class),
+        ]);
+        /** @var UserRepository $userRepo */
+        $userRepo = $container->get(UserRepository::class);
         $user = $userRepo->find($userId);
 
         $this->assertInstanceOf(UserDomain::class, $user);

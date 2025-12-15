@@ -6,6 +6,7 @@ namespace Syntexa\Tests\Examples\Orm;
 
 use Syntexa\Infrastructure\Database\User as StorageUser;
 use Syntexa\Modules\UserFrontend\Domain\User as DomainUser;
+use function DI\autowire;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 /**
@@ -56,8 +57,13 @@ class DomainExtensionTest extends OrmExampleTestCase
 
     public function testDomainExtensionPersist(): void
     {
+        $container = $this->createContainer();
+
+        /** @var \Syntexa\Orm\Entity\EntityManager $em */
+        $em = $container->get(\Syntexa\Orm\Entity\EntityManager::class);
+
         // Prime metadata so EntityManager knows mapping between DomainUser and StorageUser
-        $this->em->findBy(StorageUser::class, []);
+        $em->findBy(StorageUser::class, []);
 
         $user = new DomainUser();
         $user->setEmail('save@example.com');
@@ -66,8 +72,8 @@ class DomainExtensionTest extends OrmExampleTestCase
         $user->setMarketingOptIn(true);
         $user->setFavoriteCategory('books');
 
-        $this->em->persist($user);
-        $this->em->flush();
+        $em->persist($user);
+        $em->flush();
 
         $row = $this->pdo->query("SELECT email, marketing_opt_in, favorite_category FROM users WHERE email = 'save@example.com'")->fetch();
         $this->assertSame('save@example.com', $row['email']);

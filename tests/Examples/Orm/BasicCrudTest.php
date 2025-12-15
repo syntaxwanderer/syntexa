@@ -7,6 +7,7 @@ namespace Syntexa\Tests\Examples\Orm;
 use Syntexa\Tests\Examples\Fixtures\User\Domain;
 use Syntexa\Tests\Examples\Fixtures\User\Repository;
 use Syntexa\Tests\Examples\Fixtures\User\Storage;
+use function DI\autowire;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 /**
@@ -185,7 +186,11 @@ class BasicCrudTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (2, 'bob@example.com', 'Bob')");
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (3, 'charlie@example.com', 'Charlie')");
 
-        $repo = new Repository($this->em);
+        $container = $this->createContainer([
+            Repository::class => autowire(Repository::class),
+        ]);
+        /** @var Repository $repo */
+        $repo = $container->get(Repository::class);
 
         // Find with criteria, ordering, and pagination
         $users = $repo->findBy(
@@ -211,7 +216,11 @@ class BasicCrudTest extends OrmExampleTestCase
         // Setup: create a user
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (1, 'alice@example.com', 'Alice')");
 
-        $repo = new Repository($this->em);
+        $container = $this->createContainer([
+            Repository::class => autowire(Repository::class),
+        ]);
+        /** @var Repository $repo */
+        $repo = $container->get(Repository::class);
 
         // All repository methods return domain objects
         $user = $repo->find(1);

@@ -9,6 +9,7 @@ use Syntexa\Tests\Examples\Fixtures\User\Repository as UserRepository;
 use Syntexa\Tests\Examples\Fixtures\User\Storage as UserStorage;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 use Syntexa\Orm\Entity\EntityManager;
+use function DI\autowire;
 
 /**
  * Repository-centric examples.
@@ -52,7 +53,11 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
     {
         $this->seedUsers();
 
-        $repo = new UserRepository($this->em);
+        $container = $this->createContainer([
+            UserRepository::class => autowire(UserRepository::class),
+        ]);
+        /** @var UserRepository $repo */
+        $repo = $container->get(UserRepository::class);
 
         // find() by id returns domain object
         $user = $repo->find(1);
@@ -96,7 +101,12 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
     {
         $this->seedUsers();
 
-        $repo = new class($this->em) extends UserRepository {
+        $container = $this->createContainer();
+
+        /** @var EntityManager $em */
+        $em = $container->get(EntityManager::class);
+
+        $repo = new class($em) extends UserRepository {
             public function findByEmail(string $email): ?UserDomain
             {
                 /** @var UserDomain|null $user */
@@ -152,38 +162,49 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
     {
         $this->seedUsers();
 
-        $repo = new UserRepository($this->em);
+        $container = $this->createContainer([
+            UserRepository::class => autowire(UserRepository::class),
+            UserRenamingService::class => autowire(UserRenamingService::class),
+        ]);
 
-        $service = new class($repo) {
-            public function __construct(
-                private UserRepository $repo
-            ) {
-            }
-
-            public function renameUserByEmail(string $email, string $newName): ?UserDomain
-            {
-                /** @var UserDomain|null $user */
-                $user = $this->repo->findOneBy(['email' => $email]);
-                if ($user === null) {
-                    return null;
-                }
-
-                $user->setName($newName);
-                $this->repo->save($user);
-                $this->repo->flush();
-
-                return $user;
-            }
-        };
+        /** @var UserRenamingService $service */
+        $service = $container->get(UserRenamingService::class);
 
         $updated = $service->renameUserByEmail('alice@example.com', 'Alice Updated');
         $this->assertInstanceOf(UserDomain::class, $updated);
         $this->assertSame('Alice Updated', $updated->getName());
 
-        $reloaded = (new UserRepository($this->em))->findBy(['email' => 'alice@example.com']);
+        /** @var UserRepository $reloadedRepo */
+        $reloadedRepo = $container->get(UserRepository::class);
+        $reloaded = $reloadedRepo->findBy(['email' => 'alice@example.com']);
         $this->assertCount(1, $reloaded);
         $this->assertSame('Alice Updated', $reloaded[0]->getName());
     }
 }
 
+/**
+ * Domain-style service used in examples to demonstrate DI + repository usage.
+ */
+class UserRenamingService
+{
+    public function __construct(
+        private UserRepository $repo
+    ) {
+    }
+
+    public function renameUserByEmail(string $email, string $newName): ?UserDomain
+    {
+        /** @var UserDomain|null $user */
+        $user = $this->repo->findOneBy(['email' => $email]);
+        if ($user === null) {
+            return null;
+        }
+
+        $user->setName($newName);
+        $this->repo->save($user);
+        $this->repo->flush();
+
+        return $user;
+    }
+}
 

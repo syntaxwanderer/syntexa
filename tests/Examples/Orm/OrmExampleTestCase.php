@@ -8,6 +8,10 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 use Syntexa\Orm\Entity\EntityManager;
 use Syntexa\Orm\Mapping\DomainContext;
+use DI\Container;
+use DI\ContainerBuilder;
+use function DI\autowire;
+use function DI\value;
 
 /**
  * Base test case for ORM examples
@@ -57,6 +61,27 @@ abstract class OrmExampleTestCase extends TestCase
         $this->createSchema($this->pdo);
 
         $this->em = new EntityManager($this->pdo, new DomainContext());
+    }
+
+    /**
+     * Build a php-di container wired with this test's EntityManager.
+     *
+     * This lets example tests demonstrate the same DI pattern used in the app,
+     * while still using the per-test PDO / EntityManager from OrmExampleTestCase.
+     *
+     * @param array<string,mixed> $definitions Additional DI definitions (e.g. custom services)
+     */
+    protected function createContainer(array $definitions = []): Container
+    {
+        $builder = new ContainerBuilder();
+
+        $baseDefinitions = [
+            EntityManager::class => value($this->em),
+        ];
+
+        $builder->addDefinitions(array_merge($baseDefinitions, $definitions));
+
+        return $builder->build();
     }
 
     /**
