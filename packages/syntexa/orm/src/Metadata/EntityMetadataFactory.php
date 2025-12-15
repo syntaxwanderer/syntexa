@@ -43,7 +43,7 @@ class EntityMetadataFactory
         $columns = [];
         $identifier = null;
 
-        foreach ($reflection->getProperties() as $property) {
+        foreach (self::getAllProperties($reflection) as $property) {
             $columnAttr = self::getAttributeInstance($property, Column::class);
             $idAttr = self::getAttributeInstance($property, Id::class);
 
@@ -134,6 +134,27 @@ class EntityMetadataFactory
         }
 
         return null;
+    }
+
+    /**
+     * Collect properties from class and parents (all visibilities)
+     *
+     * @return \ReflectionProperty[]
+     */
+    private static function getAllProperties(ReflectionClass $reflection): array
+    {
+        $props = [];
+        while ($reflection) {
+            foreach ($reflection->getProperties(
+                ReflectionProperty::IS_PRIVATE |
+                ReflectionProperty::IS_PROTECTED |
+                ReflectionProperty::IS_PUBLIC
+            ) as $prop) {
+                $props[$prop->getName()] = $prop;
+            }
+            $reflection = $reflection->getParentClass();
+        }
+        return array_values($props);
     }
 
     private static function defaultTableName(string $entityClass): string

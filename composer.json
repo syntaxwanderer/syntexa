@@ -33,6 +33,7 @@
             "Syntexa\\Orm\\": "vendor/syntexa/orm/src/",
             "Syntexa\\Modules\\": "src/modules/",
             "Syntexa\\Infrastructure\\": "src/infrastructure/",
+            "Acme\\Marketing\\": "packages/acme/module-user-marketing/src/",
             "Syntexa\\Tests\\": "tests/"
     },
     "exclude-from-classmap": [

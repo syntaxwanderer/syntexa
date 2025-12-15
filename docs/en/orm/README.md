@@ -7,6 +7,7 @@ Stateless ORM for Syntexa Framework with PostgreSQL support and module table ext
 - ✅ **Stateless** - No state between requests (Swoole-safe)
 - ✅ **Connection Pooling** - Uses Swoole PDOPool for PostgreSQL
 - ✅ **Module Table Extension** - Extend tables via traits (like Request/Response)
+- ✅ **Domain Extension** - Extend domain models via domain traits (no ORM attrs)
 - ✅ **Async Support** - AsyncQueryBuilder for coroutine-based queries
 - ✅ **Query Builder** - DQL-like syntax
 

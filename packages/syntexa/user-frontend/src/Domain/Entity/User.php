@@ -4,31 +4,27 @@ declare(strict_types=1);
 
 namespace Syntexa\UserFrontend\Domain\Entity;
 
-use Syntexa\Orm\Attributes\AsEntity;
-use Syntexa\Orm\Attributes\Column;
-use Syntexa\Orm\Entity\BaseEntity;
-use Syntexa\Orm\Entity\Traits\TimestampedEntityTrait;
-
 /**
- * User domain entity
- * 
- * Usage:
- * 1. Generate wrapper: bin/syntexa entity:generate User
- * 2. Use EntityManager to persist/retrieve
+ * Clean domain model (no persistence attributes)
  */
-#[AsEntity(table: 'users')]
-class User extends BaseEntity
+class User
 {
-    use TimestampedEntityTrait;
-
-    #[Column(name: 'email', type: 'string', unique: true)]
+    private ?int $id = null;
     private string $email = '';
-
-    #[Column(name: 'password_hash', type: 'string')]
     private string $passwordHash = '';
-
-    #[Column(name: 'name', type: 'string', nullable: true)]
     private ?string $name = null;
+    private ?\DateTimeImmutable $createdAt = null;
+    private ?\DateTimeImmutable $updatedAt = null;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function setId(?int $id): void
+    {
+        $this->id = $id;
+    }
 
     public function getEmail(): string
     {
@@ -82,5 +78,23 @@ class User extends BaseEntity
         return $this->passwordHash;
     }
 
-    // Custom toArray/fromArray no longer required thanks to column attributes.
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(?\DateTimeImmutable $createdAt): void
+    {
+        $this->createdAt = $createdAt;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): void
+    {
+        $this->updatedAt = $updatedAt;
+    }
 }

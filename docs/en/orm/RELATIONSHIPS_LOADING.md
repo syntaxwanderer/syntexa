@@ -205,6 +205,7 @@ class PostDomain
 - Add relationship metadata to `EntityMetadata`
 - Update `EntityMetadataFactory` to extract relationship attributes
 - Store relationship info in metadata
+- Add domain extension attribute `#[AsDomainPart(base: ...)]` for clean domain traits
 
 ### Phase 2: Lazy Loading
 - Implement `LazyProxy` class
