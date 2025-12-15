@@ -131,7 +131,7 @@ public function up(): void
     $this->addSql('CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) NOT NULL UNIQUE,
-        name VARCHAR(255) DEFAULT \'\'
+        name VARCHAR(255) DEFAULT \'\' 
     )');
     
     $this->addSql('CREATE INDEX idx_users_email ON users(email)');
