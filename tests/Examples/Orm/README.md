@@ -8,6 +8,10 @@ These tests serve as **executable examples** of how to use Syntexa ORM. They dem
 - Entity relationships: OneToOne, OneToMany, ManyToOne, ManyToMany (`RelationshipsTest.php`)
 - Automatic relationship loading: Lazy loading and domain projection (`RelationshipLoadingTest.php`)
 
+**Saving data:** both paths are demonstrated:
+- Start from storage entity (classic ORM) — see `BasicCrudTest`
+- Start from domain object (clean model) — see `DomainProjectionTest::testCreateFromDomain`
+
 ## Running Tests
 
 ### Default: PostgreSQL (Recommended)

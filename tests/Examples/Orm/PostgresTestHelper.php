@@ -133,6 +133,9 @@ class PostgresTestHelper
         return getenv('TEST_WITH_SQLITE') !== '1' && getenv('TEST_WITH_SQLITE') !== 'true';
     }
 
+    /** Cache flag for the current process to avoid re-checking a healthy container */
+    private static bool $alreadyHealthy = false;
+
     /**
      * Start PostgreSQL container if not running
      * 
@@ -148,6 +151,17 @@ class PostgresTestHelper
             return false;
         }
 
+        // Fast path: if already healthy in this process, skip all checks
+        if (self::$alreadyHealthy) {
+            return true;
+        }
+
+        // Try a quick connection first (already-running container)
+        if (self::waitForHealthy(1)) {
+            self::$alreadyHealthy = true;
+            return true;
+        }
+
         // Step 1: Check if our container is already running
         $output = [];
         $returnCode = 0;
@@ -156,7 +170,11 @@ class PostgresTestHelper
 
         if ($isRunning) {
             // Container is running, wait for it to be healthy
-            return self::waitForHealthy();
+            $ok = self::waitForHealthy();
+            if ($ok) {
+                self::$alreadyHealthy = true;
+            }
+            return $ok;
         }
 
         // Step 2: Check if container exists but is stopped
@@ -169,7 +187,11 @@ class PostgresTestHelper
             if (file_exists($composeFile)) {
                 exec("docker compose -f {$composeFile} start 2>&1", $output, $returnCode);
                 if ($returnCode === 0) {
-                    return self::waitForHealthy();
+                    $ok = self::waitForHealthy();
+                    if ($ok) {
+                        self::$alreadyHealthy = true;
+                    }
+                    return $ok;
                 }
             }
         }
@@ -206,7 +228,11 @@ class PostgresTestHelper
             return false;
         }
 
-        return self::waitForHealthy();
+        $ok = self::waitForHealthy();
+        if ($ok) {
+            self::$alreadyHealthy = true;
+        }
+        return $ok;
     }
 
     /**

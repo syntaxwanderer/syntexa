@@ -110,7 +110,30 @@ class EntityMetadataFactory
 
     public static function resolveEntityClassForDomain(string $domainClass): ?string
     {
-        return self::$domainToEntity[$domainClass] ?? null;
+        if (isset(self::$domainToEntity[$domainClass])) {
+            return self::$domainToEntity[$domainClass];
+        }
+
+        // Fallback discovery: scan declared classes for #[AsEntity] with matching domainClass
+        foreach (get_declared_classes() as $class) {
+            // Skip non-ORM classes quickly
+            if (!str_contains($class, '\\')) {
+                continue;
+            }
+            try {
+                $ref = new ReflectionClass($class);
+            } catch (\ReflectionException) {
+                continue;
+            }
+            $attr = self::getAttributeInstance($ref, AsEntity::class);
+            if ($attr && $attr->domainClass === $domainClass) {
+                // Build metadata to populate caches (including domainToEntity)
+                self::getMetadata($class);
+                return self::$domainToEntity[$domainClass] ?? null;
+            }
+        }
+
+        return null;
     }
 
     private static function defaultTableName(string $entityClass): string

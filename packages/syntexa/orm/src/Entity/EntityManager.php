@@ -357,6 +357,15 @@ class EntityManager
 
         $storageClass = EntityMetadataFactory::resolveEntityClassForDomain($entityClass);
         if ($storageClass === null) {
+            // Fallback: try convention Domain -> Storage in the same namespace
+            $candidate = preg_replace('/\\\\Domain$/', '\\\\Storage', $entityClass);
+            if ($candidate && class_exists($candidate)) {
+                EntityMetadataFactory::getMetadata($candidate); // populates domainToEntity map
+                $storageClass = EntityMetadataFactory::resolveEntityClassForDomain($entityClass);
+            }
+        }
+
+        if ($storageClass === null) {
             throw new \RuntimeException("Cannot resolve storage entity for domain class {$entityClass}");
         }
 

@@ -72,5 +72,27 @@ class DomainProjectionTest extends OrmExampleTestCase
         $row = $this->pdo->query('SELECT name FROM users WHERE id = 2')->fetch();
         $this->assertSame('Bobby', $row['name']);
     }
+
+    /**
+     * Example: Create and persist starting from Domain object (no Storage in userland)
+     */
+    public function testCreateFromDomain(): void
+    {
+        // Create domain object only
+        $user = new Domain();
+        $user->setEmail('domain-create@example.com');
+        $user->setName('Domain Created');
+
+        // Persist domain; EntityManager resolves storage and inserts row
+        $this->em->persist($user);
+        $this->em->flush();
+
+        // Reload via repository as Domain
+        $repo = new Repository($this->em);
+        $loaded = $repo->findOneBy(['email' => 'domain-create@example.com']);
+        $this->assertInstanceOf(Domain::class, $loaded);
+        $this->assertSame('Domain Created', $loaded->getName());
+        $this->assertNotNull($loaded->getId());
+    }
 }
 
