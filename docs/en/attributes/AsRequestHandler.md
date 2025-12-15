@@ -1,10 +1,11 @@
 # AsRequestHandler Attribute
 
-## Опис
+## Description
 
-Атрибут `#[AsRequestHandler]` позначає клас як HTTP Handler для обробки конкретного Request. Handler автоматично виявляється фреймворком та викликається при обробці відповідного Request.
+The `#[AsRequestHandler]` attribute marks a class as an HTTP Handler for a specific Request.  
+Such handlers are automatically discovered by the framework and invoked to process the corresponding Request.
 
-## Використання
+## Usage
 
 ```php
 use Syntexa\Core\Attributes\AsRequestHandler;
@@ -26,27 +27,27 @@ class UserListHandler implements HttpHandlerInterface
 }
 ```
 
-## Параметри
+## Parameters
 
-### Обов'язкові
+### Required
 
-- `doc` (string) - Шлях до файлу документації (відносно кореня проекту)
-- `for` (string) - Клас Request, який обробляє цей handler
+- `doc` (string) - Path to the documentation file (relative to project root).
+- `for` (string) - Request class that this handler processes.
 
-### Опціональні
+### Optional
 
-- `execution` (HandlerExecution|string|null) - Режим виконання:
-  - `'sync'` або `HandlerExecution::Sync` - синхронне виконання (за замовчуванням)
-  - `'async'` або `HandlerExecution::Async` - асинхронне виконання через чергу
-- `transport` (string|null) - Назва транспорту черги (обов'язковий для async):
-  - `'memory'` - In-memory черга (для тестування)
-  - `'rabbitmq'` - RabbitMQ черга
-- `queue` (string|null) - Назва черги (за замовчуванням: назва класу handler)
-- `priority` (int|null) - Пріоритет handler (вищий = виконується першим, за замовчуванням: 0)
+- `execution` (HandlerExecution|string|null) - Execution mode:
+  - `'sync'` or `HandlerExecution::Sync` - synchronous execution (default).
+  - `'async'` or `HandlerExecution::Async` - asynchronous execution via queue.
+- `transport` (string|null) - Queue transport name (required for async):
+  - `'memory'` - In-memory queue (for testing).
+  - `'rabbitmq'` - RabbitMQ queue.
+- `queue` (string|null) - Queue name (default: handler class name).
+- `priority` (int|null) - Handler priority (higher = executed earlier, default: 0).
 
-## Синхронні Handlers
+## Synchronous Handlers
 
-Синхронні handlers виконуються одразу під час обробки запиту:
+Synchronous handlers are executed immediately during request processing:
 
 ```php
 #[AsRequestHandler(
@@ -71,9 +72,9 @@ class DashboardHandler implements HttpHandlerInterface
 }
 ```
 
-## Асинхронні Handlers
+## Asynchronous Handlers
 
-Асинхронні handlers виконуються через чергу:
+Asynchronous handlers are executed via a queue:
 
 ```php
 use Syntexa\Core\Queue\HandlerExecution;
@@ -90,19 +91,19 @@ class EmailSendHandler implements HttpHandlerInterface
 {
     public function handle(RequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // Цей код виконається асинхронно в worker процесі
+        // This code will run asynchronously in a worker process
         $this->emailService->send($request->email, $request->subject);
         return $response;
     }
 }
 ```
 
-## Пріоритети Handlers
+## Handler Priorities
 
-Якщо для одного Request є кілька handlers, вони виконуються в порядку пріоритету:
+If there are multiple handlers for the same Request, they are executed in priority order:
 
 ```php
-// Виконається першим (priority: 10)
+// Executed first (priority: 10)
 #[AsRequestHandler(
     doc: 'docs/attributes/AsRequestHandler.md',
     for: UserRequest::class,
@@ -110,7 +111,7 @@ class EmailSendHandler implements HttpHandlerInterface
 )]
 class UserValidationHandler implements HttpHandlerInterface {}
 
-// Виконається другим (priority: 5)
+// Executed second (priority: 5)
 #[AsRequestHandler(
     doc: 'docs/attributes/AsRequestHandler.md',
     for: UserRequest::class,
@@ -118,7 +119,7 @@ class UserValidationHandler implements HttpHandlerInterface {}
 )]
 class UserLoggingHandler implements HttpHandlerInterface {}
 
-// Виконається останнім (priority: 0, за замовчуванням)
+// Executed last (priority: 0, default)
 #[AsRequestHandler(
     doc: 'docs/attributes/AsRequestHandler.md',
     for: UserRequest::class
@@ -128,7 +129,7 @@ class UserProcessingHandler implements HttpHandlerInterface {}
 
 ## Dependency Injection
 
-Handlers підтримують автоматичну ін'єкцію залежностей через PHP-DI:
+Handlers support automatic dependency injection via PHP-DI:
 
 ```php
 use DI\Attribute\Inject;
@@ -155,22 +156,22 @@ class UserListHandler implements HttpHandlerInterface
 }
 ```
 
-## Вимоги
+## Requirements
 
-1. Клас повинен реалізувати `HttpHandlerInterface`
-2. Метод `handle()` повинен приймати `RequestInterface` та `ResponseInterface` і повертати `ResponseInterface`
-3. Параметр `for` повинен вказувати на клас з атрибутом `#[AsRequest]`
-4. Для async handlers обов'язковий параметр `transport`
-5. Параметр `doc` обов'язковий та повинен вказувати на існуючий файл документації
+1. Class MUST implement `HttpHandlerInterface`.
+2. `handle()` MUST accept `RequestInterface` and `ResponseInterface` and return a `ResponseInterface`.
+3. The `for` parameter MUST point to a class annotated with `#[AsRequest]`.
+4. For async handlers the `transport` parameter is required.
+5. The `doc` parameter is required and MUST point to an existing documentation file.
 
-## Пов'язані атрибути
+## Related attributes
 
-- `#[AsRequest]` - Request DTO, який обробляє handler
-- `#[AsResponse]` - Response DTO, який повертає handler
+- `#[AsRequest]` - Request DTO processed by the handler.
+- `#[AsResponse]` - Response DTO returned by the handler.
 
-## Див. також
+## See also
 
-- [AsRequest](AsRequest.md) - Створення Request DTO
-- [AsResponse](AsResponse.md) - Створення Response DTO
-- [Queue System](../../../packages/syntexa/core/src/Queue/README.md) - Документація системи черг
+- [AsRequest](AsRequest.md) - Creating Request DTOs.
+- [AsResponse](AsResponse.md) - Creating Response DTOs.
+- [Queue System](../../../packages/syntexa/core/src/Queue/README.md) - Queue system documentation.
 

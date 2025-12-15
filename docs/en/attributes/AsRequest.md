@@ -1,10 +1,11 @@
 # AsRequest Attribute
 
-## Опис
+## Description
 
-Атрибут `#[AsRequest]` позначає клас як HTTP Request DTO (Data Transfer Object) та визначає маршрут, методи та інші параметри роутингу.
+The `#[AsRequest]` attribute marks a class as an HTTP Request DTO (Data Transfer Object)  
+and defines the route, HTTP methods and other routing parameters.
 
-## Використання
+## Usage
 
 ```php
 use Syntexa\Core\Attributes\AsRequest;
@@ -22,36 +23,37 @@ class UserListRequest implements RequestInterface
 }
 ```
 
-## Параметри
+# Parameters
 
-### Обов'язкові
+### Required
 
-- `doc` (string) - Шлях до файлу документації (відносно кореня проекту)
+- `doc` (string) - Path to the documentation file (relative to project root).
 
-### Опціональні
+### Optional
 
-- `base` (string|null) - Базовий Request клас для наслідування
-- `responseWith` (string|null) - Клас Response, який буде використано
-- `path` (string|null) - URL шлях маршруту (обов'язковий якщо немає `base`)
-- `methods` (array|null) - HTTP методи (за замовчуванням: `['GET']`)
-- `name` (string|null) - Ім'я маршруту (за замовчуванням: коротка назва класу)
-- `requirements` (array|null) - Вимоги до параметрів маршруту
-- `defaults` (array|null) - Значення за замовчуванням для параметрів
-- `options` (array|null) - Додаткові опції маршруту
-- `tags` (array|null) - Теги для маршруту
-- `public` (bool|null) - Чи публічний маршрут (за замовчуванням: `true`)
+- `base` (string|null) - Base Request class to inherit from.
+- `responseWith` (string|null) - Response class to be used for this Request.
+- `path` (string|null) - Route URL path (required if `base` is not provided).
+- `methods` (array|null) - HTTP methods (default: `['GET']`).
+- `name` (string|null) - Route name (default: short class name).
+- `requirements` (array|null) - Route parameter requirements.
+- `defaults` (array|null) - Default values for route parameters.
+- `options` (array|null) - Additional route options.
+- `tags` (array|null) - Tags/metadata for the route.
+- `public` (bool|null) - Whether the route is public (default: `true`).
 
 ## Environment Variables
 
-Ви можете використовувати змінні оточення в будь-якому значенні атрибута:
+You can use environment variables in any attribute value:
 
 - `env::VAR_NAME` - читає з .env файлу, повертає порожній рядок якщо не встановлено
 - `env::VAR_NAME::default_value` - читає з .env файлу, повертає default якщо не встановлено (рекомендовано)
 - `env::VAR_NAME:default_value` - старий формат, також підтримується
 
-**Рекомендовано використовувати подвійний двокрапка (`::`)**, оскільки він дозволяє використовувати двокрапки в значеннях за замовчуванням.
+**It is recommended to use the double colon (`::`) syntax**,  
+because it allows colons in default values.
 
-### Приклад з environment variables:
+### Example with environment variables:
 
 ```php
 #[AsRequest(
@@ -68,9 +70,9 @@ class LoginRequest implements RequestInterface
 }
 ```
 
-## Наслідування через base
+## Inheritance via `base`
 
-Ви можете наслідувати параметри від іншого Request:
+You can inherit parameters from another Request:
 
 ```php
 // Base request
@@ -85,20 +87,20 @@ class BaseApiRequest implements RequestInterface {}
 #[AsRequest(
     doc: 'docs/attributes/AsRequest.md',
     base: BaseApiRequest::class,
-    path: '/users'  // Перевизначає path, але наслідує methods
+    path: '/users'  // Overrides path, inherits methods
 )]
 class UserListRequest extends BaseApiRequest {}
 ```
 
-## Пов'язані атрибути
+## Related attributes
 
-- `#[AsRequestHandler]` - Handler для обробки Request
-- `#[AsRequestPart]` - Trait для розширення Request
-- `#[AsResponse]` - Response DTO
+- `#[AsRequestHandler]` - Handler for processing the Request.
+- `#[AsRequestPart]` - Trait to extend a Request.
+- `#[AsResponse]` - Response DTO.
 
-## Приклади
+## Examples
 
-### Базовий GET запит
+### Basic GET request
 
 ```php
 #[AsRequest(
@@ -109,7 +111,7 @@ class UserListRequest extends BaseApiRequest {}
 class DashboardRequest implements RequestInterface {}
 ```
 
-### POST запит з валідацією
+### POST request with validation
 
 ```php
 #[AsRequest(
@@ -125,7 +127,7 @@ class CreateUserRequest implements RequestInterface
 }
 ```
 
-### RESTful API з параметрами
+### RESTful API with parameters
 
 ```php
 #[AsRequest(
@@ -141,15 +143,15 @@ class UserRequest implements RequestInterface
 }
 ```
 
-## Вимоги
+## Requirements
 
-1. Клас повинен реалізувати `RequestInterface`
-2. Параметр `path` обов'язковий (якщо не використовується `base`)
-3. Параметр `doc` обов'язковий та повинен вказувати на існуючий файл документації
+1. Class MUST implement `RequestInterface`.
+2. The `path` parameter is required (unless `base` is used).
+3. The `doc` parameter is required and MUST point to an existing documentation file.
 
-## Див. також
+## See also
 
-- [AsRequestHandler](AsRequestHandler.md) - Створення handler для Request
-- [AsResponse](AsResponse.md) - Створення Response DTO
-- [Request/Response/Handler Pattern](../../CONVENTIONS.md) - Загальні конвенції
+- [AsRequestHandler](AsRequestHandler.md) - Creating a handler for a Request.
+- [AsResponse](AsResponse.md) - Creating a Response DTO.
+- [Request/Response/Handler Pattern](../../CONVENTIONS.md) - General conventions.
 

@@ -1,10 +1,11 @@
 # AsEntity Attribute
 
-## Опис
+## Description
 
-Атрибут `#[AsEntity]` позначає клас як Entity (сутність бази даних) для ORM. Entity представляє таблицю в базі даних та використовується для роботи з даними через EntityManager.
+The `#[AsEntity]` attribute marks a class as a database Entity for the ORM.  
+An Entity represents a database table and is used by the `EntityManager` to work with data.
 
-## Використання
+## Usage
 
 ```php
 use Syntexa\Orm\Attributes\AsEntity;
@@ -34,35 +35,35 @@ class User extends BaseEntity
 }
 ```
 
-## Параметри
+## Parameters
 
-### Обов'язкові
+### Required
 
-- `doc` (string) - Шлях до файлу документації (відносно кореня проекту)
+- `doc` (string) - Path to the documentation file (relative to project root).
 
-### Опціональні
+### Optional
 
-- `table` (string|null) - Назва таблиці в базі даних (за замовчуванням: автоматично з назви класу)
-- `schema` (string|null) - Схема бази даних (для PostgreSQL)
+- `table` (string|null) - Database table name (default: generated from class name).
+- `schema` (string|null) - Database schema (for PostgreSQL).
 
-## Вимоги
+## Requirements
 
-1. Клас повинен наслідувати `BaseEntity`
-2. Клас повинен мати принаймні один `#[Id]` атрибут на властивості
-3. Властивості повинні мати атрибут `#[Column]`
-4. Параметр `doc` обов'язковий та повинен вказувати на існуючий файл документації
+1. Class SHOULD extend `BaseEntity` (or be compatible with the ORM expectations).
+2. Class MUST have at least one property with `#[Id]`.
+3. Mapped properties MUST have the `#[Column]` attribute.
+4. The `doc` parameter is required and MUST point to an existing documentation file.
 
-## Автоматична назва таблиці
+## Automatic table name
 
-Якщо параметр `table` не вказано, назва таблиці генерується автоматично з назви класу:
+If the `table` parameter is not specified, the table name is generated from the class name:
 
-- `User` → `users` (додається 's' та перетворюється в snake_case)
+- `User` → `users` (snake_case + pluralized with `s`)
 - `OrderItem` → `order_items`
 - `UserProfile` → `user_profiles`
 
-## Приклади
+## Examples
 
-### Базова Entity
+### Basic Entity
 
 ```php
 #[AsEntity(
@@ -81,7 +82,7 @@ class User extends BaseEntity
 }
 ```
 
-### Entity зі схемою
+### Entity with schema
 
 ```php
 #[AsEntity(
@@ -98,7 +99,7 @@ class Order extends BaseEntity
 }
 ```
 
-### Entity з timestamps
+### Entity with timestamps
 
 ```php
 use Syntexa\Orm\Entity\Traits\TimestampedEntityTrait;
@@ -109,7 +110,7 @@ use Syntexa\Orm\Entity\Traits\TimestampedEntityTrait;
 )]
 class Post extends BaseEntity
 {
-    use TimestampedEntityTrait; // Додає created_at та updated_at
+    use TimestampedEntityTrait; // Adds created_at and updated_at
 
     #[Id]
     #[GeneratedValue(doc: 'docs/attributes/GeneratedValue.md')]
@@ -121,19 +122,19 @@ class Post extends BaseEntity
 }
 ```
 
-## Розширення через Traits
+## Extension via Traits
 
-Entity можна розширювати через traits з атрибутом `#[AsEntityPart]`:
+Entities can be extended via traits annotated with `#[AsEntityPart]`:
 
 ```php
-// Base entity в модулі
+// Base entity in module
 #[AsEntity(
     doc: 'docs/attributes/AsEntity.md',
     table: 'users'
 )]
 class User extends BaseEntity { }
 
-// Extension trait в іншому модулі
+// Extension trait in another module
 #[AsEntityPart(
     doc: 'docs/attributes/AsEntityPart.md',
     base: User::class
@@ -145,7 +146,7 @@ trait UserMarketingTrait
 }
 ```
 
-## Використання з EntityManager
+## Using with EntityManager
 
 ```php
 use Syntexa\Orm\Entity\EntityManager;
@@ -175,17 +176,17 @@ class UserRepository
 }
 ```
 
-## Пов'язані атрибути
+## Related attributes
 
-- `#[Id]` - Позначає властивість як первинний ключ
-- `#[GeneratedValue]` - Автоматична генерація значення
-- `#[Column]` - Маппінг на колонку бази даних
-- `#[TimestampColumn]` - Timestamp колонки (created_at, updated_at)
-- `#[AsEntityPart]` - Trait для розширення Entity
+- `#[Id]` - Marks a property as a primary key.
+- `#[GeneratedValue]` - Automatic value generation.
+- `#[Column]` - Maps a property to a database column.
+- `#[TimestampColumn]` - Timestamp columns (created_at, updated_at).
+- `#[AsEntityPart]` - Trait for extending an Entity.
 
-## Див. також
+## See also
 
-- [Column](Column.md) - Маппінг властивостей на колонки
-- [AsEntityPart](AsEntityPart.md) - Розширення Entity через traits
-- [EntityManager](../../../packages/syntexa/orm/README.md) - Документація ORM
+- [Column](Column.md) - Property-to-column mapping.
+- [AsEntityPart](AsEntityPart.md) - Extending Entity via traits.
+- [EntityManager](../../../packages/syntexa/orm/README.md) - ORM documentation.
 

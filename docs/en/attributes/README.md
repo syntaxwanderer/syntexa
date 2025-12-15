@@ -1,21 +1,21 @@
 # Attributes Documentation
 
-Ця директорія містить документацію для всіх атрибутів фреймворку Syntexa.
+This directory contains documentation for all attributes used in the Syntexa framework.
 
-## Структура
+## Structure
 
-Кожен атрибут має свій файл документації, на який посилається через обов'язковий параметр `doc`:
+Each attribute has its own documentation file, referenced via the required `doc` parameter:
 
 ```php
 #[AsRequest(
-    doc: 'docs/attributes/AsRequest.md',  // ← Посилання на документацію
+    doc: 'docs/attributes/AsRequest.md',  // ← Documentation link
     path: '/api/users',
     methods: ['GET']
 )]
 class UserListRequest implements RequestInterface {}
 ```
 
-## Доступні атрибути
+## Available attributes
 
 ### Core Attributes
 
@@ -33,79 +33,79 @@ class UserListRequest implements RequestInterface {}
 - [GeneratedValue](GeneratedValue.md) - Auto-generated value
 - [TimestampColumn](TimestampColumn.md) - Timestamp columns
 
-## Використання для AI
+## Usage for AI
 
-AI асистенти можуть автоматично читати документацію з атрибутів через `AttributeDocReader`:
+AI assistants can automatically read attribute documentation via `AttributeDocReader`:
 
 ```php
 use Syntexa\Core\Attributes\AttributeDocReader;
 
-// Отримати документацію для класу
+// Get documentation for a class
 $reflection = new \ReflectionClass(UserListRequest::class);
 $docs = AttributeDocReader::readClassAttributeDocs($reflection, $projectRoot);
 
-// Отримати шлях до документації
+// Get documentation path from attribute
 $attr = $reflection->getAttributes(AsRequest::class)[0]->newInstance();
 $docPath = AttributeDocReader::getDocPath($attr);
 ```
 
-## Створення нової документації
+## Creating new attribute documentation
 
-При створенні нового атрибута:
+When creating a new attribute:
 
-1. Створіть файл документації в `docs/attributes/`
-2. Додайте обов'язковий параметр `doc` до конструктора атрибута
-3. Реалізуйте `DocumentedAttributeInterface` або використайте `DocumentedAttributeTrait`
-4. Заповніть документацію з прикладами використання
+1. Create a documentation file in `docs/attributes/`.
+2. Add a required `doc` parameter to the attribute constructor.
+3. Implement `DocumentedAttributeInterface` or use `DocumentedAttributeTrait`.
+4. Fill the documentation with usage and examples.
 
-### Шаблон документації
+### Documentation template
 
 ```markdown
 # AttributeName
 
-## Опис
+## Description
 
-Короткий опис що робить атрибут.
+Short description of what the attribute does.
 
-## Використання
+## Usage
 
 ```php
-// Приклад коду
+// Example code
 ```
 
-## Параметри
+## Parameters
 
-### Обов'язкові
-- `param` - Опис
+### Required
+- `param` - Description
 
-### Опціональні
-- `param` - Опис
+### Optional
+- `param` - Description
 
-## Приклади
+## Examples
 
-### Базовий приклад
+### Basic example
 ```php
-// Код
+// Code
 ```
 
-## Вимоги
+## Requirements
 
-1. Вимога 1
-2. Вимога 2
+1. Requirement 1
+2. Requirement 2
 
-## Пов'язані атрибути
+## Related attributes
 
 - [OtherAttribute](OtherAttribute.md)
 
-## Див. також
+## See also
 
 - [Related Documentation](../README.md)
 ```
 
-## Переваги
+## Benefits
 
-✅ **Для AI**: Автоматичне читання документації з атрибутів  
-✅ **Для розробників**: Документація завжди поруч з кодом  
-✅ **Для IDE**: Можливість створення автодоповнення на основі документації  
-✅ **Валідація**: Можна перевіряти наявність документації під час розробки
+✅ **For AI**: Automatic documentation lookup from attributes  
+✅ **For developers**: Documentation is always close to the code  
+✅ **For IDEs**: Enables autocomplete and hints based on documentation  
+✅ **Validation**: You can enforce presence of documentation during development
 

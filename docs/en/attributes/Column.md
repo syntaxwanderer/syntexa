@@ -1,10 +1,11 @@
 # Column Attribute
 
-## Опис
+## Description
 
-Атрибут `#[Column]` позначає властивість класу Entity як колонку бази даних. Використовується для маппінгу PHP властивостей на колонки таблиці.
+The `#[Column]` attribute marks an Entity property as a database column.  
+It is used to map PHP properties to table columns.
 
-## Використання
+## Usage
 
 ```php
 use Syntexa\Orm\Attributes\Column;
@@ -23,28 +24,28 @@ class User extends BaseEntity
 }
 ```
 
-## Параметри
+## Parameters
 
-### Обов'язкові
+### Required
 
-- `doc` (string) - Шлях до файлу документації (відносно кореня проекту)
+- `doc` (string) - Path to the documentation file (relative to project root).
 
-### Опціональні
+### Optional
 
-- `name` (string|null) - Назва колонки в базі даних (за замовчуванням: snake_case від назви властивості)
-- `type` (string) - Тип даних в базі (за замовчуванням: `'string'`):
+- `name` (string|null) - Column name in the database (default: snake_case of property name).
+- `type` (string) - Database type (default: `'string'`):
   - `'string'` - VARCHAR/TEXT
   - `'integer'` - INT/BIGINT
   - `'boolean'` - BOOLEAN
   - `'float'` - DECIMAL/FLOAT
   - `'datetime'` - TIMESTAMP/DATETIME
   - `'json'` - JSONB (PostgreSQL)
-- `nullable` (bool) - Чи може бути NULL (за замовчуванням: `false`)
-- `unique` (bool) - Чи має бути унікальним (за замовчуванням: `false`)
-- `length` (int|null) - Максимальна довжина (для string типу)
-- `default` (mixed) - Значення за замовчуванням
+- `nullable` (bool) - Whether NULL is allowed (default: `false`).
+- `unique` (bool) - Whether value must be unique (default: `false`).
+- `length` (int|null) - Maximum length (for string type).
+- `default` (mixed) - Default value.
 
-## Типи даних
+## Data types
 
 ### String
 
@@ -106,17 +107,17 @@ private \DateTimeImmutable $createdAt;
 private ?array $metadata = null;
 ```
 
-## Автоматична назва колонки
+## Automatic column name
 
-Якщо параметр `name` не вказано, назва колонки генерується автоматично:
+If `name` is not specified, the column name is generated automatically:
 
 - `$email` → `email`
 - `$firstName` → `first_name`
 - `$isActive` → `is_active`
 
-## Приклади
+## Examples
 
-### Обов'язкове поле
+### Required field
 
 ```php
 #[Column(
@@ -129,7 +130,7 @@ private ?array $metadata = null;
 private string $email;
 ```
 
-### Опціональне поле
+### Optional field
 
 ```php
 #[Column(
@@ -141,7 +142,7 @@ private string $email;
 private ?string $phone = null;
 ```
 
-### Поле з значенням за замовчуванням
+### Field with default value
 
 ```php
 #[Column(
@@ -153,7 +154,7 @@ private ?string $phone = null;
 private string $status = 'pending';
 ```
 
-### Поле з обмеженням довжини
+### Field with length constraint
 
 ```php
 #[Column(
@@ -165,22 +166,22 @@ private string $status = 'pending';
 private string $title;
 ```
 
-## Вимоги
+## Requirements
 
-1. Атрибут повинен використовуватися на властивостях класу з `#[AsEntity]`
-2. Параметр `doc` обов'язковий та повинен вказувати на існуючий файл документації
-3. Тип PHP властивості повинен відповідати типу колонки
+1. The attribute MUST be used on properties of a class annotated with `#[AsEntity]`.
+2. The `doc` parameter is required and MUST point to an existing documentation file.
+3. The PHP property type SHOULD match the column type.
 
-## Пов'язані атрибути
+## Related attributes
 
-- `#[AsEntity]` - Позначає клас як Entity
-- `#[Id]` - Позначає колонку як первинний ключ
-- `#[GeneratedValue]` - Автоматична генерація значення
-- `#[TimestampColumn]` - Спеціальні timestamp колонки
+- `#[AsEntity]` - Marks a class as an Entity.
+- `#[Id]` - Marks a column as a primary key.
+- `#[GeneratedValue]` - Automatic value generation.
+- `#[TimestampColumn]` - Special timestamp columns.
 
-## Див. також
+## See also
 
-- [AsEntity](AsEntity.md) - Створення Entity
-- [Id](Id.md) - Первинний ключ
-- [GeneratedValue](GeneratedValue.md) - Автоматична генерація
+- [AsEntity](AsEntity.md) - Creating an Entity.
+- [Id](Id.md) - Primary key.
+- [GeneratedValue](GeneratedValue.md) - Automatic generation.
 
