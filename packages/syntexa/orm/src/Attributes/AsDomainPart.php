@@ -6,7 +6,7 @@ namespace Syntexa\Orm\Attributes;
 
 use Attribute;
 
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_TRAIT)]
+#[Attribute(Attribute::TARGET_CLASS)]
 class AsDomainPart
 {
     public function __construct(

@@ -27,7 +27,8 @@ class UserListRequest implements RequestInterface {}
 ### ORM Attributes
 
 - [AsEntity](AsEntity.md) - Database Entity
-- [AsEntityPart](AsEntityPart.md) - Entity extension trait
+- [AsEntityPart](AsEntityPart.md) - Storage entity extension trait
+- [AsDomainPart](AsDomainPart.md) - Domain model extension trait
 - [Column](Column.md) - Database column mapping
 - [Id](Id.md) - Primary key
 - [GeneratedValue](GeneratedValue.md) - Auto-generated value

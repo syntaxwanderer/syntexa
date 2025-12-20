@@ -37,6 +37,9 @@ class Application extends SymfonyApplication
         if (class_exists(\Syntexa\Orm\Console\Command\EntityGenerateCommand::class)) {
             $commands[] = new \Syntexa\Orm\Console\Command\EntityGenerateCommand();
         }
+        if (class_exists(\Syntexa\Orm\Console\Command\DomainGenerateCommand::class)) {
+            $commands[] = new \Syntexa\Orm\Console\Command\DomainGenerateCommand();
+        }
         if (class_exists(\Syntexa\Orm\Console\Command\MigrateCommand::class)) {
             $commands[] = new \Syntexa\Orm\Console\Command\MigrateCommand();
         }

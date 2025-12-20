@@ -57,7 +57,10 @@ class EntityWrapperGenerator
         }
     }
 
-    private static function bootstrapDefinitions(): array
+    /**
+     * Bootstrap and get entity definitions (public for use in commands)
+     */
+    public static function bootstrapDefinitions(): array
     {
         if (!self::$bootstrapped) {
             IntelligentAutoloader::initialize();
@@ -67,6 +70,26 @@ class EntityWrapperGenerator
         }
 
         return self::$cachedDefinitions;
+    }
+
+    /**
+     * Resolve target entity from identifier (public for use in commands)
+     */
+    public static function resolveTarget(array $entities, string $identifier): ?array
+    {
+        // Try as FQN first
+        if (isset($entities[$identifier])) {
+            return $entities[$identifier];
+        }
+
+        // Try as short name
+        foreach ($entities as $entity) {
+            if ($entity['short'] === $identifier) {
+                return $entity;
+            }
+        }
+
+        return null;
     }
 
     private static function collectEntityDefinitions(): array
@@ -169,22 +192,6 @@ class EntityWrapperGenerator
         return str_contains($file, self::PROJECT_SRC);
     }
 
-    private static function resolveTarget(array $entities, string $identifier): ?array
-    {
-        // Try as FQN first
-        if (isset($entities[$identifier])) {
-            return $entities[$identifier];
-        }
-
-        // Try as short name
-        foreach ($entities as $entity) {
-            if ($entity['short'] === $identifier) {
-                return $entity;
-            }
-        }
-
-        return null;
-    }
 
     private static function writeWrapper(array $target, array $parts): void
     {

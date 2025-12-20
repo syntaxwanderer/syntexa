@@ -10,10 +10,10 @@ use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
 use Syntexa\Core\Response;
-use Syntexa\UserFrontend\Application\Input\Http\LoginFormRequest;
+use Syntexa\UserFrontend\Application\Input\LoginFormRequest;
 use Syntexa\UserFrontend\Application\Output\LoginFormResponse;
-use Syntexa\UserFrontend\Domain\Service\AuthService;
-use Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService;
+use Syntexa\UserDomain\Domain\Service\AuthService;
+use Syntexa\UserDomain\Domain\Service\LoginAnalyticsService;
 
 #[AsRequestHandler(for: LoginFormRequest::class)]
 class LoginFormHandler implements HttpHandlerInterface

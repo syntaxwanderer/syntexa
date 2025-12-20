@@ -10,8 +10,8 @@ use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
 use Syntexa\Core\Response;
-use Syntexa\UserFrontend\Application\Input\Http\LogoutRequest;
-use Syntexa\UserFrontend\Domain\Service\AuthService;
+use Syntexa\UserFrontend\Application\Input\LogoutRequest;
+use Syntexa\UserDomain\Domain\Service\AuthService;
 
 #[AsRequestHandler(for: LogoutRequest::class)]
 class LogoutHandler implements HttpHandlerInterface

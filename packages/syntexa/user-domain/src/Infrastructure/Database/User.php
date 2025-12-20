@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Infrastructure\Database;
+namespace Syntexa\UserDomain\Infrastructure\Database;
 
 use Syntexa\Orm\Attributes\AsEntity;
 use Syntexa\Orm\Attributes\Column;
 use Syntexa\Orm\Attributes\GeneratedValue;
 use Syntexa\Orm\Attributes\Id;
 use Syntexa\Orm\Attributes\TimestampColumn;
-use Syntexa\UserFrontend\Domain\Entity\User as DomainUser;
+use Syntexa\UserDomain\Domain\Entity\User as DomainUser;
 
 /**
  * Base storage entity for User (module-local)

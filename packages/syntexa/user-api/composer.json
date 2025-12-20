@@ -10,7 +10,8 @@
         }
     ],
     "require": {
-        "php": "^8.4"
+        "php": "^8.4",
+        "syntexa/module-user-domain": "*"
     },
     "autoload": {
         "psr-4": {

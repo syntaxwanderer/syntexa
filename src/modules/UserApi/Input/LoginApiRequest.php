@@ -9,11 +9,11 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserApi\Input;
 
 use Syntexa\Core\Attributes\AsRequest;
-use Syntexa\User\Application\Input\Http\LoginApiRequest as SyntexaLoginApiRequestBase;
-use Syntexa\User\Application\Output\Http\LoginApiResponse as SyntexaLoginApiResponse;
+use Syntexa\User\Application\Input\LoginApiRequest as SyntexaLoginApiRequestBase;
+use Syntexa\Modules\UserApi\Output\LoginApiResponse as SyntexaLoginApiResponse;
 use Acme\Marketing\Application\Input\Traits\LoginMarketingTagTrait as AcmeLoginMarketingTagTrait;
-use Syntexa\User\Application\Input\Http\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
-use Syntexa\User\Application\Input\Http\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
+use Syntexa\User\Application\Input\Traits\LoginApiRequiredFieldsTrait as SyntexaLoginApiRequiredFieldsTrait;
+use Syntexa\User\Application\Input\Traits\LoginApiTrackingTrait as SyntexaLoginApiTrackingTrait;
 use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 

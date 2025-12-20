@@ -9,7 +9,7 @@ use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
 use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Queue\HandlerExecution;
-use Syntexa\User\Application\Input\Http\LoginApiRequest;
+use Syntexa\User\Application\Input\LoginApiRequest;
 use Syntexa\User\Application\Output\Http\LoginApiResponse;
 
 /**

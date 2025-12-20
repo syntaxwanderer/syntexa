@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Domain\Service;
+namespace Syntexa\UserDomain\Domain\Service;
 
-use Syntexa\UserFrontend\Domain\Entity\User;
-use Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface;
+use Syntexa\Modules\UserDomain\Domain\User;
+use Syntexa\UserDomain\Domain\Repository\UserRepositoryInterface;
 
 /**
  * Authentication service

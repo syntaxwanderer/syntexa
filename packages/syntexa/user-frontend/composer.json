@@ -12,7 +12,8 @@
     "require": {
         "php": "^8.4",
         "syntexa/module-core-frontend": "*",
-        "syntexa/module-user-api": "*"
+        "syntexa/module-user-api": "*",
+        "syntexa/module-user-domain": "*"
     },
     "autoload": {
         "psr-4": {

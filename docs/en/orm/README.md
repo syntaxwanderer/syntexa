@@ -70,33 +70,95 @@ class User extends BaseEntity
 }
 ```
 
-### 2. Extend Entity via Traits (Module Extension)
+### 2. Extend Storage Entity via Traits (Infrastructure Extension)
+
+```php
+<?php
+
+namespace Acme\Marketing\Infrastructure\Database;
+
+use Syntexa\Orm\Attributes\AsEntityPart;
+use Syntexa\UserFrontend\Infrastructure\Database\User;
+
+#[AsEntityPart(base: User::class)]
+trait UserMarketingProfileTrait
+{
+    #[Column(name: 'marketing_tag', type: 'string', nullable: true)]
+    public ?string $marketingTag;
+    
+    #[Column(name: 'referral_code', type: 'string', nullable: true)]
+    public ?string $referralCode;
+}
+```
+
+### 3. Extend Domain Model via Traits (Domain Extension)
 
 ```php
 <?php
 
 namespace Acme\Marketing\Domain\Entity;
 
-use Syntexa\Orm\Attributes\AsEntityPart;
+use Syntexa\Orm\Attributes\AsDomainPart;
 use Syntexa\UserFrontend\Domain\Entity\User;
 
-#[AsEntityPart(base: User::class)]
-trait UserMarketingTrait
+#[AsDomainPart(base: User::class)]
+trait UserMarketingProfileDomainTrait
 {
-    public ?string $marketingTag;
-    public ?string $referralCode;
+    private ?\DateTimeImmutable $birthday = null;
+    private bool $marketingOptIn = false;
+    private ?string $favoriteCategory = null;
+
+    public function getBirthday(): ?\DateTimeImmutable
+    {
+        return $this->birthday;
+    }
+
+    public function setBirthday(?\DateTimeImmutable $birthday): void
+    {
+        $this->birthday = $birthday;
+    }
+
+    public function hasMarketingOptIn(): bool
+    {
+        return $this->marketingOptIn;
+    }
+
+    public function setMarketingOptIn(bool $marketingOptIn): void
+    {
+        $this->marketingOptIn = $marketingOptIn;
+    }
+
+    public function getFavoriteCategory(): ?string
+    {
+        return $this->favoriteCategory;
+    }
+
+    public function setFavoriteCategory(?string $favoriteCategory): void
+    {
+        $this->favoriteCategory = $favoriteCategory;
+    }
 }
 ```
 
-### 3. Generate Entity Wrapper
+### 4. Generate Wrappers
 
 ```bash
+# Generate both storage and domain wrappers automatically
 bin/syntexa entity:generate User
 # or
 bin/syntexa entity:generate --all
 ```
 
-This creates `src/modules/UserFrontend/Entity/User.php` that extends the base and uses traits.
+The `entity:generate` command automatically generates:
+- `src/infrastructure/Database/User.php` - Storage entity wrapper (combines base + storage traits)
+- `src/modules/UserFrontend/Domain/User.php` - Domain model wrapper (combines base + domain traits, if domainClass is configured)
+
+**Note:** If you only need to generate domain wrappers separately, you can use:
+```bash
+bin/syntexa domain:generate User
+# or
+bin/syntexa domain:generate --all
+```
 
 ### 4. Use Repository (Recommended - DDD Approach)
 

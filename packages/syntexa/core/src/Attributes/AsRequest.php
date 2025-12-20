@@ -49,6 +49,7 @@ class AsRequest implements DocumentedAttributeInterface
         public ?array $options = null,
         public ?array $tags = null,
         public ?bool $public = null,
+        public string $protocol = 'http',
     ) {
         $this->doc = $doc;
     }

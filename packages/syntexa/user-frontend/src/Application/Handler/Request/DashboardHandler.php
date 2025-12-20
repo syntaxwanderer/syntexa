@@ -10,9 +10,9 @@ use Syntexa\Core\Handler\HttpHandlerInterface;
 use Syntexa\Core\Contract\RequestInterface;
 use Syntexa\Core\Contract\ResponseInterface;
 use Syntexa\Core\Response;
-use Syntexa\UserFrontend\Application\Input\Http\DashboardRequest;
+use Syntexa\UserFrontend\Application\Input\DashboardRequest;
 use Syntexa\UserFrontend\Application\Output\DashboardResponse;
-use Syntexa\UserFrontend\Domain\Service\AuthService;
+use Syntexa\UserDomain\Domain\Service\AuthService;
 
 #[AsRequestHandler(for: DashboardRequest::class)]
 class DashboardHandler implements HttpHandlerInterface

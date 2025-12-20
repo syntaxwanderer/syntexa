@@ -9,8 +9,8 @@ declare(strict_types=1);
 namespace Syntexa\Modules\UserFrontend\Input;
 
 use Syntexa\Core\Attributes\AsRequest;
-use Syntexa\UserFrontend\Application\Input\Http\DashboardRequest as SyntexaDashboardRequestBase;
-use Syntexa\Modules\UserFrontend\Output\DashboardResponse as SyntexaDashboardResponse;
+use Syntexa\UserFrontend\Application\Input\DashboardRequest as SyntexaDashboardRequestBase;
+use Syntexa\UserFrontend\Application\Output\DashboardResponse as SyntexaDashboardResponse;
 use Syntexa\Core\Contract\RequestInterface as SyntexaRequestInterface;
 
 

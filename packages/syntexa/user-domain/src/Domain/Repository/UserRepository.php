@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Domain\Repository;
+namespace Syntexa\UserDomain\Domain\Repository;
 
-use Syntexa\Modules\UserFrontend\Domain\User;
+use Syntexa\Modules\UserDomain\Domain\User;
 use Syntexa\Orm\Entity\EntityManager;
 use DI\Attribute\Inject;
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Application\Input\Http\Traits;
+namespace Syntexa\UserFrontend\Application\Input\Traits;
 
 use Syntexa\Core\Attributes\AsRequestPart;
-use Syntexa\UserFrontend\Application\Input\Http\LoginFormRequest;
+use Syntexa\UserFrontend\Application\Input\LoginFormRequest;
 
 #[AsRequestPart(base: LoginFormRequest::class)]
 trait LoginFormRequiredFieldsTrait

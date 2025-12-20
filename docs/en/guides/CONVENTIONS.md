@@ -122,26 +122,56 @@ class User extends BaseEntity
 
 ### Entity Extension via Traits
 
+#### Storage Entity Extension (Infrastructure)
+
 ```php
-// Base entity (in module)
-#[AsEntity(table: 'users')]
-class User extends BaseEntity { }
+// Base storage entity (in module)
+#[AsEntity(table: 'users', domainClass: User::class)]
+class User { }
 
 // Extension trait (in another module)
 #[AsEntityPart(base: User::class)]
-trait UserMarketingTrait
+trait UserMarketingProfileTrait
 {
+    #[Column(name: 'marketing_tag', type: 'string', nullable: true)]
     public ?string $marketingTag;
 }
 ```
 
-### Generate Entity Wrapper
+#### Domain Model Extension (Domain)
 
-```bash
-bin/syntexa entity:generate User
+```php
+// Base domain model (in module)
+namespace Syntexa\UserFrontend\Domain\Entity;
+class User { }
+
+// Extension trait (in another module)
+#[AsDomainPart(base: User::class)]
+trait UserMarketingProfileDomainTrait
+{
+    private bool $marketingOptIn = false;
+    
+    public function hasMarketingOptIn(): bool
+    {
+        return $this->marketingOptIn;
+    }
+}
 ```
 
-This creates `src/infrastructure/database/User.php` that combines base + traits.
+### Generate Wrappers
+
+```bash
+# Generate both storage and domain wrappers automatically
+bin/syntexa entity:generate User
+# or
+bin/syntexa entity:generate --all
+```
+
+This automatically creates:
+- `src/infrastructure/Database/User.php` - Storage entity wrapper (combines base + storage traits)
+- `src/modules/UserFrontend/Domain/User.php` - Domain model wrapper (combines base + domain traits, if domainClass is configured)
+
+**Note:** The `entity:generate` command automatically generates domain wrappers for entities that have `domainClass` configured. If you only need domain wrappers, use `bin/syntexa domain:generate User`.
 
 ## Attribute Usage
 

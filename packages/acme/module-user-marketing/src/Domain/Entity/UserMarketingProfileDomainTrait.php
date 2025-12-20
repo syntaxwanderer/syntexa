@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Acme\Marketing\Domain\Entity;
 
 use Syntexa\Orm\Attributes\AsDomainPart;
-use Syntexa\UserFrontend\Domain\Entity\User;
+use Syntexa\UserDomain\Domain\Entity\User;
 
 #[AsDomainPart(base: User::class)]
 trait UserMarketingProfileDomainTrait

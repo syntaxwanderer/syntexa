@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Domain\Service;
+namespace Syntexa\UserDomain\Domain\Service;
 
 /**
  * Domain service for tracking login page analytics

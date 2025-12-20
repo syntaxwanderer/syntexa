@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Syntexa\UserFrontend\Domain\Entity;
+namespace Syntexa\UserDomain\Domain\Entity;
 
 /**
  * Clean domain model (no persistence attributes)

@@ -1,0 +1,28 @@
+{
+    "name": "syntexa/module-user-domain",
+    "description": "User domain models, repositories and services for Syntexa",
+    "type": "syntexa-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Syntexa",
+            "email": "support@syntexa.local"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "syntexa/module-orm": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\UserDomain\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "name": "user-domain",
+            "description": "User domain models, repositories and services"
+        }
+    }
+}
+

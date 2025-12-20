@@ -6,7 +6,7 @@ namespace Acme\Marketing\Infrastructure\Database;
 
 use Syntexa\Orm\Attributes\AsEntityPart;
 use Syntexa\Orm\Attributes\Column;
-use Syntexa\UserFrontend\Infrastructure\Database\User;
+use Syntexa\UserDomain\Infrastructure\Database\User;
 
 #[AsEntityPart(base: User::class)]
 trait UserMarketingProfileTrait
