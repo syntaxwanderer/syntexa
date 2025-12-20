@@ -14,6 +14,7 @@ use Syntexa\Core\Console\Command\LayoutGenerateCommand;
 use Syntexa\Core\Console\Command\QueueWorkCommand;
 use Syntexa\Core\Console\Command\UserCreateCommand;
 use Syntexa\Core\Console\Command\TestHandlerCommand;
+use Syntexa\Core\Console\Command\AiCommand;
 
 class Application extends SymfonyApplication
 {
@@ -31,6 +32,7 @@ class Application extends SymfonyApplication
             new QueueWorkCommand(),
             new UserCreateCommand(),
             new TestHandlerCommand(),
+            new AiCommand(),
         ];
 
         // Add ORM commands if available

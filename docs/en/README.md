@@ -17,8 +17,9 @@ docs/en/
 
 ## Documentation Index
 
-### Architecture
-- [Architecture Overview](../architecture/ARCHITECTURE.md) - Framework architecture and design principles
+### 🚀 Quick Start
+- **[AI Reference Guide](AI_REFERENCE.md)** - ⭐ **Start here for AI assistants** - Complete quick reference
+- [Architecture Overview](architecture/ARCHITECTURE.md) - Framework architecture and design principles
 
 ### Attributes
 - [Attributes Index](attributes/README.md) - Complete list of framework attributes
@@ -27,20 +28,22 @@ docs/en/
 ### Guides
 - [Conventions](guides/CONVENTIONS.md) - Coding conventions and patterns
 - [Examples](guides/EXAMPLES.md) - Usage examples and tutorials
-- [Quick Start](guides/QUICK_START.md) - Getting started guide
 
-### API
-- [API Reference](api/README.md) - Complete API documentation
+### ORM
+- [ORM Documentation](orm/README.md) - Complete ORM guide
 
 ## For AI Assistants
 
+**⭐ START HERE:** Read [AI Reference Guide](AI_REFERENCE.md) first!
+
 When working with this documentation:
 
-1. **Always use English version** - This is the source of truth
-2. **Check structure** - Understand the directory organization
-3. **Read attributes** - Attribute docs are in `attributes/`
-4. **Follow conventions** - See `guides/CONVENTIONS.md`
-5. **Use working directory** - Use `var/docs/` for temporary files
+1. **Read AI Reference Guide** - `AI_REFERENCE.md` has everything you need
+2. **Always use English version** - This is the source of truth
+3. **Check structure** - Understand the directory organization
+4. **Read attributes** - Attribute docs are in `attributes/` (accessible via `doc:` param)
+5. **Follow conventions** - See `guides/CONVENTIONS.md`
+6. **Use working directory** - Use `var/docs/` for temporary files
 
 ## Contributing
 
