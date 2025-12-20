@@ -6,10 +6,13 @@
 
 **Example**:
 ```php
-$post = $em->find(PostStorage::class, 1);
+// Note: EntityManager works only with domain entities, not storage entities
+$postRepo = $container->get(PostRepository::class);
+$post = $postRepo->find(1);
 // $post->getUserId() returns int (ID)
 // To get User object, you need to manually:
-$user = $em->find(UserStorage::class, $post->getUserId());
+$userRepo = $container->get(UserRepository::class);
+$user = $userRepo->find($post->getUserId());
 ```
 
 ## Goal
@@ -127,13 +130,15 @@ if ($metadata->relationships[$propertyName] ?? null) {
     if ($fkValue !== null) {
         if ($relationship->fetch === 'lazy') {
             // Create lazy proxy
+            // Note: targetEntity should be domain class, not storage entity
             $related = new LazyProxy(
                 $this->em,
-                $relationship->targetEntity,
+                $relationship->targetEntity, // Domain class
                 $fkValue
             );
         } else {
             // Eager load
+            // Note: EntityManager accepts domain class, not storage entity
             $related = $this->em->find($relationship->targetEntity, $fkValue);
         }
         

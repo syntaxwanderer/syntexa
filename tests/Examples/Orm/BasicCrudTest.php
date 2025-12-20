@@ -7,7 +7,7 @@ namespace Syntexa\Tests\Examples\Orm;
 use Syntexa\Tests\Examples\Fixtures\User\Domain;
 use Syntexa\Tests\Examples\Fixtures\User\Repository;
 use Syntexa\Tests\Examples\Fixtures\User\Storage;
-use function DI\autowire;
+use Syntexa\Tests\Examples\Orm\Autowire;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 /**
@@ -44,23 +44,22 @@ class BasicCrudTest extends OrmExampleTestCase
      */
     public function testCreateEntity(): void
     {
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
-        // Create storage entity first (for new entities, we start with storage)
-        $userStorage = new Storage();
-        $userStorage->setEmail('alice@example.com');
-        $userStorage->setName('Alice');
+        // Create new entity via repository (returns domain object)
+        $user = $repo->create();
+        $user->setEmail('alice@example.com');
+        $user->setName('Alice');
 
-        // Save via EntityManager (returns domain object after save)
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Save immediately writes to database, returns domain object with ID
+        $saved = $repo->save($user);
 
         // ID is auto-generated
-        $this->assertNotNull($userStorage->getId());
-        $this->assertSame(1, $userStorage->getId());
+        $this->assertNotNull($saved->getId());
+        $this->assertSame(1, $saved->getId());
 
         // Now we can load it as domain object via repository
-        $user = $repo->find($userStorage->getId());
+        $user = $repo->find($saved->getId());
         $this->assertInstanceOf(Domain::class, $user);
         $this->assertSame('alice@example.com', $user->getEmail());
     }
@@ -73,7 +72,7 @@ class BasicCrudTest extends OrmExampleTestCase
         // Setup: create a user first
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (1, 'bob@example.com', 'Bob')");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
         // Find by ID - returns domain object
         $user = $repo->find(1);
@@ -94,7 +93,7 @@ class BasicCrudTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (2, 'bob@example.com', 'Bob')");
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (3, 'charlie@example.com', 'Charlie')");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
         // Find one by criteria
         $user = $repo->findOneBy(['email' => 'bob@example.com']);
@@ -112,7 +111,7 @@ class BasicCrudTest extends OrmExampleTestCase
         // Setup: create a user
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (1, 'alice@example.com', 'Alice')");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
         // Load entity
         $user = $repo->find(1);
@@ -121,9 +120,8 @@ class BasicCrudTest extends OrmExampleTestCase
         // Modify domain object
         $user->setName('Alice Updated');
 
-        // Save and flush changes via repository
-        $repo->save($user);
-        $repo->flush();
+        // Update immediately writes to database
+        $repo->update($user);
 
         // Verify update
         $updated = $repo->find(1);
@@ -139,15 +137,14 @@ class BasicCrudTest extends OrmExampleTestCase
         // Setup: create a user
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (1, 'alice@example.com', 'Alice')");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
         // Load entity
         $user = $repo->find(1);
         $this->assertNotNull($user);
 
-        // Delete via repository
-        $repo->remove($user);
-        $repo->flush();
+        // Delete immediately removes from database
+        $repo->delete($user);
 
         // Verify deletion
         $deleted = $repo->find(1);
@@ -164,7 +161,7 @@ class BasicCrudTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (2, 'bob@example.com', 'Bob')");
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (3, 'charlie@example.com', 'Charlie')");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
 
         // Find all - returns array of domain objects
         $users = $repo->findBy();
@@ -187,7 +184,7 @@ class BasicCrudTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (3, 'charlie@example.com', 'Charlie')");
 
         $container = $this->createContainer([
-            Repository::class => autowire(Repository::class),
+            Repository::class => Autowire::class(Repository::class),
         ]);
         /** @var Repository $repo */
         $repo = $container->get(Repository::class);
@@ -217,7 +214,7 @@ class BasicCrudTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO users (id, email, name) VALUES (1, 'alice@example.com', 'Alice')");
 
         $container = $this->createContainer([
-            Repository::class => autowire(Repository::class),
+            Repository::class => Autowire::class(Repository::class),
         ]);
         /** @var Repository $repo */
         $repo = $container->get(Repository::class);
@@ -229,8 +226,7 @@ class BasicCrudTest extends OrmExampleTestCase
 
         // Update domain object
         $user->setName('Alice Updated');
-        $repo->save($user);
-        $repo->flush();
+        $repo->update($user);
 
         // Verify update
         $updated = $repo->find(1);

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Syntexa\Tests\Examples\Orm;
 
-use Syntexa\Infrastructure\Database\User as StorageUser;
 use Syntexa\Modules\UserFrontend\Domain\User as DomainUser;
-use function DI\autowire;
+use Syntexa\UserFrontend\Domain\Repository\UserRepository;
+use Syntexa\Infrastructure\Database\User as StorageUser;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 /**
@@ -43,8 +43,13 @@ class DomainExtensionTest extends OrmExampleTestCase
             VALUES (1, 'ext@example.com', 'hash', 'Extended', '2000-01-01 00:00:00', 1, 'tech')
         ");
 
+        // Prime metadata for wrapper storage entity so EntityManager can resolve it
+        $this->em->getEntityMetadata(StorageUser::class);
+
+        // Create UserRepository directly with EntityManager
+        $userRepo = new UserRepository($this->em);
         /** @var DomainUser $user */
-        $user = $this->em->find(StorageUser::class, 1);
+        $user = $userRepo->findById(1);
 
         $this->assertInstanceOf(DomainUser::class, $user);
         $this->assertSame('ext@example.com', $user->getEmail());
@@ -57,14 +62,13 @@ class DomainExtensionTest extends OrmExampleTestCase
 
     public function testDomainExtensionPersist(): void
     {
-        $container = $this->createContainer();
+        // Prime metadata for wrapper storage entity so EntityManager can resolve it
+        $this->em->getEntityMetadata(StorageUser::class);
 
-        /** @var \Syntexa\Orm\Entity\EntityManager $em */
-        $em = $container->get(\Syntexa\Orm\Entity\EntityManager::class);
+        // Create UserRepository directly with EntityManager
+        $userRepo = new UserRepository($this->em);
 
-        // Prime metadata so EntityManager knows mapping between DomainUser and StorageUser
-        $em->findBy(StorageUser::class, []);
-
+        // UserRepository doesn't extend DomainRepository, so we create domain entity directly
         $user = new DomainUser();
         $user->setEmail('save@example.com');
         $user->setPassword('secret');
@@ -72,8 +76,7 @@ class DomainExtensionTest extends OrmExampleTestCase
         $user->setMarketingOptIn(true);
         $user->setFavoriteCategory('books');
 
-        $em->persist($user);
-        $em->flush();
+        $userRepo->save($user);
 
         $row = $this->pdo->query("SELECT email, marketing_opt_in, favorite_category FROM users WHERE email = 'save@example.com'")->fetch();
         $this->assertSame('save@example.com', $row['email']);

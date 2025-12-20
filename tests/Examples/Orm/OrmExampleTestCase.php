@@ -10,8 +10,8 @@ use Syntexa\Orm\Entity\EntityManager;
 use Syntexa\Orm\Mapping\DomainContext;
 use DI\Container;
 use DI\ContainerBuilder;
-use function DI\autowire;
 use function DI\value;
+use Syntexa\Tests\Examples\Orm\Autowire;
 
 /**
  * Base test case for ORM examples
@@ -74,6 +74,10 @@ abstract class OrmExampleTestCase extends TestCase
     protected function createContainer(array $definitions = []): Container
     {
         $builder = new ContainerBuilder();
+        
+        // Enable autowiring so we can use class names directly
+        $builder->useAutowiring(true);
+        $builder->useAttributes(true);
 
         $baseDefinitions = [
             EntityManager::class => value($this->em),
@@ -82,6 +86,21 @@ abstract class OrmExampleTestCase extends TestCase
         $builder->addDefinitions(array_merge($baseDefinitions, $definitions));
 
         return $builder->build();
+    }
+
+    /**
+     * Get repository instance via DI container
+     * 
+     * This is the recommended way to get repositories in tests,
+     * as it uses the same DI pattern as the application.
+     * 
+     * @template T
+     * @param class-string<T> $repositoryClass Repository class name
+     * @return T Repository instance
+     */
+    protected function getRepository(string $repositoryClass): object
+    {
+        return Autowire::repository($repositoryClass, $this->em);
     }
 
     /**

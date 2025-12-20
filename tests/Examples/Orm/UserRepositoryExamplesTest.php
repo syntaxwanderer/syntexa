@@ -6,10 +6,9 @@ namespace Syntexa\Tests\Examples\Orm;
 
 use Syntexa\Tests\Examples\Fixtures\User\Domain as UserDomain;
 use Syntexa\Tests\Examples\Fixtures\User\Repository as UserRepository;
-use Syntexa\Tests\Examples\Fixtures\User\Storage as UserStorage;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 use Syntexa\Orm\Entity\EntityManager;
-use function DI\autowire;
+use Syntexa\Tests\Examples\Orm\Autowire;
 
 /**
  * Repository-centric examples.
@@ -54,7 +53,7 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
         $this->seedUsers();
 
         $container = $this->createContainer([
-            UserRepository::class => autowire(UserRepository::class),
+            UserRepository::class => Autowire::class(UserRepository::class),
         ]);
         /** @var UserRepository $repo */
         $repo = $container->get(UserRepository::class);
@@ -75,21 +74,20 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
         $this->assertSame('alice@example.com', $users[0]->getEmail());
         $this->assertSame('bob@example.com', $users[1]->getEmail());
 
-        // save() + flush() to insert new user
+        // save() immediately writes to database
         $newUser = new UserDomain();
         $newUser->setEmail('eve@example.com');
         $newUser->setName('Eve');
 
-        $repo->save($newUser);
-        $repo->flush();
+        $saved = $repo->save($newUser);
+        $this->assertNotNull($saved->getId());
 
         $loaded = $repo->findOneBy(['email' => 'eve@example.com']);
         $this->assertInstanceOf(UserDomain::class, $loaded);
         $this->assertSame('Eve', $loaded->getName());
 
-        // remove() + flush()
-        $repo->remove($loaded);
-        $repo->flush();
+        // delete() immediately removes from database
+        $repo->delete($loaded);
 
         $this->assertNull($repo->findOneBy(['email' => 'eve@example.com']));
     }
@@ -128,14 +126,14 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
 
                 $rows = $qb->getResult();
 
-                // Map rows back to domain via EntityManager
+                // Map rows back to domain via EntityManager using domain class
                 $results = [];
                 foreach ($rows as $row) {
-                    $storage = new UserStorage();
-                    $storage->setId((int) $row['id']);
-                    $storage->setEmail($row['email']);
-                    $storage->setName($row['name']);
-                    $results[] = $this->em->find(UserStorage::class, $storage->getId());
+                    // Use domain class instead of storage entity
+                    $user = $this->em->find(UserDomain::class, (int) $row['id']);
+                    if ($user !== null) {
+                        $results[] = $user;
+                    }
                 }
 
                 return $results;
@@ -163,8 +161,8 @@ class UserRepositoryExamplesTest extends OrmExampleTestCase
         $this->seedUsers();
 
         $container = $this->createContainer([
-            UserRepository::class => autowire(UserRepository::class),
-            UserRenamingService::class => autowire(UserRenamingService::class),
+            UserRepository::class => Autowire::class(UserRepository::class),
+            UserRenamingService::class => Autowire::class(UserRenamingService::class),
         ]);
 
         /** @var UserRenamingService $service */
@@ -201,10 +199,7 @@ class UserRenamingService
         }
 
         $user->setName($newName);
-        $this->repo->save($user);
-        $this->repo->flush();
-
-        return $user;
+        return $this->repo->update($user);
     }
 }
 

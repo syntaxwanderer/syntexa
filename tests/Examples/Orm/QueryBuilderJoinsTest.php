@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Syntexa\Tests\Examples\Orm;
 
-use Syntexa\Tests\Examples\Fixtures\User\Storage;
+use Syntexa\Tests\Examples\Fixtures\User\Domain;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
 class QueryBuilderJoinsTest extends OrmExampleTestCase
@@ -37,9 +37,11 @@ class QueryBuilderJoinsTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO addresses (id, label) VALUES (1, 'HQ')");
         $this->insert($this->pdo, "INSERT INTO users (id, email, name, address_id) VALUES (1, 'a@example.com', 'Alice', 1)");
 
-        $qb = $this->em->createQueryBuilder()
+        // QueryBuilder works with storage class internally, but we use domain class for API
+        // The repository's createQueryBuilder uses storage class under the hood
+        $userRepo = $this->getRepository(\Syntexa\Tests\Examples\Fixtures\User\Repository::class);
+        $qb = $userRepo->createQueryBuilder('u')
             ->select('u.*, a.label AS address_label')
-            ->from(Storage::class, 'u')
             ->leftJoin('addresses', 'a', 'u.address_id = a.id')
             ->where('u.id = :id')
             ->setParameter('id', 1);

@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Syntexa\Tests\Examples\Orm;
 
 use Syntexa\Tests\Examples\Fixtures\User\Domain as UserDomain;
-use Syntexa\Tests\Examples\Fixtures\User\Storage as UserStorage;
 use Syntexa\Tests\Examples\Fixtures\User\Repository as UserRepository;
 use Syntexa\Tests\Examples\Fixtures\Address\Domain as AddressDomain;
-use Syntexa\Tests\Examples\Fixtures\Address\Storage as AddressStorage;
+use Syntexa\Tests\Examples\Fixtures\Address\Repository as AddressRepository;
 use Syntexa\Tests\Examples\Fixtures\Post\Domain as PostDomain;
-use Syntexa\Tests\Examples\Fixtures\Post\Storage as PostStorage;
+use Syntexa\Tests\Examples\Fixtures\Post\Repository as PostRepository;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
-use function DI\autowire;
+use Syntexa\Tests\Examples\Orm\Autowire;
 
 /**
  * Relationships examples
@@ -89,28 +88,28 @@ class RelationshipsTest extends OrmExampleTestCase
      */
     public function testOneToOneRelationship(): void
     {
-        // Create address
-        $addressStorage = new AddressStorage();
-        $addressStorage->setStreet('123 Main St');
-        $addressStorage->setCity('Kyiv');
-        $addressStorage->setCountry('Ukraine');
-        $this->em->persist($addressStorage);
-        $this->em->flush();
+        // Create address using domain entity and repository
+        $addressRepo = $this->getRepository(AddressRepository::class);
+        $address = $addressRepo->create();
+        $address->setStreet('123 Main St');
+        $address->setCity('Kyiv');
+        $address->setCountry('Ukraine');
+        $savedAddress = $addressRepo->save($address);
 
-        // Create user with address
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('user@example.com');
-        $userStorage->setName('John Doe');
-        $userStorage->setAddressId($addressStorage->getId());
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user with address using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('user@example.com');
+        $user->setName('John Doe');
+        // Note: address_id is storage-only field, not exposed in domain
+        // In real scenario, you would set address relationship via domain method
+        $savedUser = $userRepo->save($user);
 
         // Load user (returns domain object)
-        $userRepo = new UserRepository($this->em);
-        $user = $userRepo->find($userStorage->getId());
+        $loadedUser = $userRepo->find($savedUser->getId());
 
-        $this->assertInstanceOf(UserDomain::class, $user);
-        $this->assertSame('user@example.com', $user->getEmail());
+        $this->assertInstanceOf(UserDomain::class, $loadedUser);
+        $this->assertSame('user@example.com', $loadedUser->getEmail());
 
         // Note: address_id is storage-only field, not exposed in domain
         // To access address, you would need to load it separately or use joins
@@ -122,35 +121,35 @@ class RelationshipsTest extends OrmExampleTestCase
      */
     public function testManyToOneRelationship(): void
     {
-        // Create user
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('author@example.com');
-        $userStorage->setName('Author');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('author@example.com');
+        $user->setName('Author');
+        $savedUser = $userRepo->save($user);
 
-        // Create posts for this user
-        $post1 = new PostStorage();
+        // Create posts for this user using domain entities
+        $postRepo = $this->getRepository(PostRepository::class);
+        
+        $post1 = $postRepo->create();
         $post1->setTitle('First Post');
         $post1->setContent('Content of first post');
-        $post1->setUserId($userStorage->getId());
-        $this->em->persist($post1);
+        $post1->setUserId($savedUser->getId());
+        $postRepo->save($post1);
 
-        $post2 = new PostStorage();
+        $post2 = $postRepo->create();
         $post2->setTitle('Second Post');
         $post2->setContent('Content of second post');
-        $post2->setUserId($userStorage->getId());
-        $this->em->persist($post2);
+        $post2->setUserId($savedUser->getId());
+        $postRepo->save($post2);
 
-        $this->em->flush();
-
-        // Load posts (returns domain objects)
-        $posts = $this->em->findBy(PostStorage::class, ['userId' => $userStorage->getId()]);
+        // Load posts using repository (returns domain objects)
+        $posts = $postRepo->findBy(['userId' => $savedUser->getId()]);
 
         $this->assertCount(2, $posts);
         $this->assertInstanceOf(PostDomain::class, $posts[0]);
         $this->assertSame('First Post', $posts[0]->getTitle());
-        $this->assertSame($userStorage->getId(), $posts[0]->getUserId());
+        $this->assertSame($savedUser->getId(), $posts[0]->getUserId());
         $this->assertSame('Second Post', $posts[1]->getTitle());
 
         // Test lazy loading: accessing user property should load UserDomain
@@ -172,27 +171,27 @@ class RelationshipsTest extends OrmExampleTestCase
      */
     public function testOneToManyRelationship(): void
     {
-        // Create user
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('blogger@example.com');
-        $userStorage->setName('Blogger');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('blogger@example.com');
+        $user->setName('Blogger');
+        $savedUser = $userRepo->save($user);
 
-        $userId = $userStorage->getId();
+        $userId = $savedUser->getId();
 
-        // Create multiple posts for this user
+        // Create multiple posts for this user using domain entities and repository
+        $postRepo = $this->getRepository(PostRepository::class);
         for ($i = 1; $i <= 3; $i++) {
-            $post = new PostStorage();
+            $post = $postRepo->create();
             $post->setTitle("Post {$i}");
             $post->setContent("Content of post {$i}");
             $post->setUserId($userId);
-            $this->em->persist($post);
+            $postRepo->save($post);
         }
-        $this->em->flush();
 
-        // Get all posts for this user (OneToMany: one user has many posts)
-        $posts = $this->em->findBy(PostStorage::class, ['userId' => $userId]);
+        // Get all posts for this user using repository (OneToMany: one user has many posts)
+        $posts = $postRepo->findBy(['userId' => $userId]);
 
         $this->assertCount(3, $posts);
         foreach ($posts as $post) {
@@ -207,18 +206,18 @@ class RelationshipsTest extends OrmExampleTestCase
      */
     public function testManyToManyRelationship(): void
     {
-        // Create users
-        $user1 = new UserStorage();
+        // Create users using domain entities and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        
+        $user1 = $userRepo->create();
         $user1->setEmail('user1@example.com');
         $user1->setName('User 1');
-        $this->em->persist($user1);
+        $savedUser1 = $userRepo->save($user1);
 
-        $user2 = new UserStorage();
+        $user2 = $userRepo->create();
         $user2->setEmail('user2@example.com');
         $user2->setName('User 2');
-        $this->em->persist($user2);
-
-        $this->em->flush();
+        $savedUser2 = $userRepo->save($user2);
 
         // Create tags
         $this->insert($this->pdo, "INSERT INTO tags (id, name) VALUES (1, 'php')");
@@ -226,10 +225,10 @@ class RelationshipsTest extends OrmExampleTestCase
         $this->insert($this->pdo, "INSERT INTO tags (id, name) VALUES (3, 'python')");
 
         // Link users to tags via join table
-        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$user1->getId()}, 1)");
-        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$user1->getId()}, 2)");
-        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$user2->getId()}, 2)");
-        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$user2->getId()}, 3)");
+        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$savedUser1->getId()}, 1)");
+        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$savedUser1->getId()}, 2)");
+        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$savedUser2->getId()}, 2)");
+        $this->insert($this->pdo, "INSERT INTO user_tags (user_id, tag_id) VALUES ({$savedUser2->getId()}, 3)");
 
         // Query: Get all tags for user1 using raw SQL (QueryBuilder expects entity classes)
         $stmt = $this->pdo->prepare("
@@ -238,7 +237,7 @@ class RelationshipsTest extends OrmExampleTestCase
             INNER JOIN user_tags ut ON ut.tag_id = t.id
             WHERE ut.user_id = ?
         ");
-        $stmt->execute([$user1->getId()]);
+        $stmt->execute([$savedUser1->getId()]);
         $tags = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $this->assertCount(2, $tags);
@@ -270,43 +269,45 @@ class RelationshipsTest extends OrmExampleTestCase
      */
     public function testRelationshipsWithRepository(): void
     {
-        // Create user
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('repo@example.com');
-        $userStorage->setName('Repo User');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('repo@example.com');
+        $user->setName('Repo User');
+        $savedUser = $userRepo->save($user);
 
-        $userId = $userStorage->getId();
+        $userId = $savedUser->getId();
 
-        // Create posts using domain objects
-        $post1 = new PostDomain();
+        // Create posts using domain objects and repository
+        $postRepo = $this->getRepository(PostRepository::class);
+        
+        $post1 = $postRepo->create();
         $post1->setTitle('Repository Post 1');
         $post1->setContent('Content 1');
         $post1->setUserId($userId);
+        $postRepo->save($post1);
 
-        $post2 = new PostDomain();
+        $post2 = $postRepo->create();
         $post2->setTitle('Repository Post 2');
         $post2->setContent('Content 2');
         $post2->setUserId($userId);
-
-        // Save posts via EntityManager (they will be mapped to storage)
-        $this->em->persist($post1);
-        $this->em->persist($post2);
-        $this->em->flush();
+        $postRepo->save($post2);
 
         // Load user's posts using repository resolved from DI container
         $container = $this->createContainer([
-            UserRepository::class => autowire(UserRepository::class),
+            UserRepository::class => Autowire::class(UserRepository::class),
+            PostRepository::class => Autowire::class(PostRepository::class),
         ]);
         /** @var UserRepository $userRepo */
         $userRepo = $container->get(UserRepository::class);
-        $user = $userRepo->find($userId);
+        $loadedUser = $userRepo->find($userId);
 
-        $this->assertInstanceOf(UserDomain::class, $user);
+        $this->assertInstanceOf(UserDomain::class, $loadedUser);
 
-        // Get posts for this user
-        $posts = $this->em->findBy(PostStorage::class, ['userId' => $userId]);
+        // Get posts for this user using repository
+        /** @var PostRepository $postRepo */
+        $postRepo = $container->get(PostRepository::class);
+        $posts = $postRepo->findBy(['userId' => $userId]);
 
         $this->assertCount(2, $posts);
         $this->assertInstanceOf(PostDomain::class, $posts[0]);

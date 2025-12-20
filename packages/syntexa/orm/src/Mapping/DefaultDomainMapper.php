@@ -192,11 +192,15 @@ class DefaultDomainMapper implements DomainMapperInterface
             return;
         }
 
+        // Resolve domain class for target entity
+        // If targetEntity is a storage entity, resolve its domain class
+        $targetDomainClass = $this->resolveDomainClass($relationship->targetEntity);
+        
         // Create lazy proxy or eager load based on fetch strategy
         if ($relationship->isLazy() && $this->entityManager !== null) {
             $proxy = new LazyProxy(
                 $this->entityManager,
-                $relationship->targetEntity,
+                $targetDomainClass,
                 $fkValue
             );
             $domain->$setter($proxy);
@@ -205,7 +209,7 @@ class DefaultDomainMapper implements DomainMapperInterface
             // For now, create lazy proxy (eager loading will be implemented in Phase 3)
             $proxy = new LazyProxy(
                 $this->entityManager,
-                $relationship->targetEntity,
+                $targetDomainClass,
                 $fkValue
             );
             $domain->$setter($proxy);
@@ -287,6 +291,35 @@ class DefaultDomainMapper implements DomainMapperInterface
         $value = str_replace(['_', '-'], ' ', $value);
         $value = ucwords($value);
         return str_replace(' ', '', $value);
+    }
+
+    /**
+     * Resolve domain class for target entity
+     * If targetEntity is a storage entity, return its domain class
+     * If targetEntity is already a domain class, return it as is
+     */
+    private function resolveDomainClass(string $targetEntity): string
+    {
+        if ($this->entityManager === null) {
+            return $targetEntity; // Cannot resolve without EntityManager
+        }
+
+        try {
+            // Try to get metadata - if it works, it's a storage entity
+            $metadata = $this->entityManager->getEntityMetadata($targetEntity);
+            
+            // If it has domainClass, return domain class
+            if ($metadata->domainClass !== null) {
+                return $metadata->domainClass;
+            }
+            
+            // It's a storage entity without domainClass - this shouldn't happen in DDD
+            // But for backward compatibility, return as is
+            return $targetEntity;
+        } catch (\RuntimeException) {
+            // Not a storage entity, assume it's already a domain class
+            return $targetEntity;
+        }
     }
 }
 

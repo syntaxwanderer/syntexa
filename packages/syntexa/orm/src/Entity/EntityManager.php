@@ -25,7 +25,6 @@ class EntityManager
      * @var PDO|object Connection (PDO in CLI, PDOProxy in Swoole)
      */
     private $connection;
-    private array $unitOfWork = []; // Track entities for flush
     /** @var array<class-string, EntityMetadata> */
     private array $entityMetadata = [];
     private DomainContext $domainContext;
@@ -42,10 +41,14 @@ class EntityManager
 
     /**
      * Find entity by ID
+     * 
+     * @param string $entityClass Storage entity class or domain entity class
      */
     public function find(string $entityClass, int $id): ?object
     {
-        $metadata = $this->getEntityMetadata($entityClass);
+        // Resolve storage entity class if domain class is provided
+        $storageClass = $this->resolveStorageClass($entityClass);
+        $metadata = $this->getEntityMetadata($storageClass);
         $table = $metadata->tableName;
         $identifier = $metadata->identifier;
 
@@ -69,10 +72,14 @@ class EntityManager
 
     /**
      * Find entities by criteria
+     * 
+     * @param string $entityClass Storage entity class or domain entity class
      */
     public function findBy(string $entityClass, array $criteria = [], ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
     {
-        $metadata = $this->getEntityMetadata($entityClass);
+        // Resolve storage entity class if domain class is provided
+        $storageClass = $this->resolveStorageClass($entityClass);
+        $metadata = $this->getEntityMetadata($storageClass);
         $table = $metadata->tableName;
         
         $query = "SELECT * FROM {$table}";
@@ -127,6 +134,8 @@ class EntityManager
 
     /**
      * Find one entity by criteria
+     * 
+     * @param string $entityClass Storage entity class or domain entity class
      */
     public function findOneBy(string $entityClass, array $criteria): ?object
     {
@@ -135,34 +144,100 @@ class EntityManager
     }
 
     /**
-     * Persist entity (add to unit of work)
+     * Resolve storage entity class from domain or storage class
+     * 
+     * @param string $entityClass Domain or storage entity class
+     * @return string Storage entity class
+     * @throws \RuntimeException If storage entity is passed directly (must use domain class or repository)
      */
-    public function persist(object $entity): void
+    private function resolveStorageClass(string $entityClass): string
     {
-        if (!is_object($entity)) {
-            throw new \InvalidArgumentException('Entity must be an object');
+        try {
+            // Try to get metadata - if it works, it's a storage entity
+            $metadata = $this->getEntityMetadata($entityClass);
+            
+            // If it's a storage entity with domainClass configured, reject it
+            // Storage entities should not be used directly - use domain class instead
+            if ($metadata->domainClass !== null) {
+                throw new \RuntimeException(
+                    "Storage entity '{$entityClass}' cannot be used directly. " .
+                    "Use domain class '{$metadata->domainClass}' instead, or use a repository. " .
+                    "This ensures proper separation between domain and infrastructure layers."
+                );
+            }
+            
+            // If it's a storage entity without domainClass, it's legacy or misconfigured
+            // Still reject it to enforce DDD pattern
+            throw new \RuntimeException(
+                "Storage entity '{$entityClass}' cannot be used directly. " .
+                "Use a repository or configure domainClass in #[AsEntity] attribute. " .
+                "This ensures proper separation between domain and infrastructure layers."
+            );
+        } catch (\RuntimeException $e) {
+            // If it's our validation exception, re-throw it
+            if (str_contains($e->getMessage(), 'cannot be used directly')) {
+                throw $e;
+            }
+            // Otherwise, it's not a storage entity, try to resolve from domain
         }
 
-        $storage = $this->ensureStorageEntity($entity);
-        $this->unitOfWork[] = $storage;
+        $storageClass = EntityMetadataFactory::resolveEntityClassForDomain($entityClass);
+        if ($storageClass === null) {
+            throw new \RuntimeException("Cannot resolve storage entity for class {$entityClass}. Make sure it has #[AsEntity] attribute with domainClass parameter, or is a valid domain class.");
+        }
+
+        return $storageClass;
     }
 
     /**
-     * Flush all persisted entities to database
+     * Save entity (insert or update) - immediately writes to database
+     * 
+     * Replaces the old persist() + flush() pattern. This method writes
+     * to the database immediately, making the API simpler and more intuitive.
+     * 
+     * @param object $entity Domain or storage entity
+     * @return object Saved entity (with ID if new)
      */
-    public function flush(): void
+    public function save(object $entity): object
     {
-        foreach ($this->unitOfWork as $entity) {
-            $this->saveEntity($entity);
+        $storage = $this->ensureStorageEntity($entity);
+        $this->saveEntity($storage);
+        return $this->mapDomainIfNeeded($this->getEntityMetadata(get_class($storage)), $storage);
+    }
+
+    /**
+     * Update existing entity - immediately writes to database
+     * 
+     * @param object $entity Domain or storage entity (must have ID)
+     * @return object Updated entity
+     * @throws \RuntimeException If entity doesn't have ID
+     */
+    public function update(object $entity): object
+    {
+        $storage = $this->ensureStorageEntity($entity);
+        $metadata = $this->getEntityMetadata(get_class($storage));
+        $identifier = $metadata->identifier;
+        
+        if ($identifier === null) {
+            throw new \RuntimeException("Cannot update entity without identifier metadata.");
         }
         
-        $this->unitOfWork = [];
+        $idValue = $identifier->getValue($storage);
+        if ($idValue === null) {
+            throw new \RuntimeException('Cannot update entity without ID. Use save() for new entities.');
+        }
+        
+        $this->saveEntity($storage);
+        return $this->mapDomainIfNeeded($metadata, $storage);
     }
 
     /**
-     * Remove entity
+     * Delete entity - immediately removes from database
+     * 
+     * @param object $entity Domain or storage entity
+     * @throws \RuntimeException If entity doesn't have ID
      */
-    public function remove(object $entity): void
+    public function delete(object $entity): void
     {
         $storage = $this->ensureStorageEntity($entity);
         $entityClass = get_class($storage);
@@ -193,9 +268,68 @@ class EntityManager
     }
 
     /**
-     * Get entity metadata (table name, etc.)
+     * Save entity asynchronously (Swoole only)
+     * 
+     * In Swoole environment, database operations through connection pool
+     * are already non-blocking. This method creates a coroutine for the operation.
+     * 
+     * @param object $entity Domain or storage entity
+     * @return \Generator Yields the saved entity (with ID if new)
+     * @throws \RuntimeException If Swoole is not available
      */
-    private function getEntityMetadata(string $entityClass): EntityMetadata
+    public function saveAsync(object $entity): \Generator
+    {
+        if (!extension_loaded('swoole')) {
+            throw new \RuntimeException('Swoole extension is required for async operations');
+        }
+
+        // In Swoole, operations through connection pool are already async
+        // We just yield to allow other coroutines to run
+        yield;
+        return $this->save($entity);
+    }
+
+    /**
+     * Update entity asynchronously (Swoole only)
+     * 
+     * @param object $entity Domain or storage entity (must have ID)
+     * @return \Generator Yields the updated entity
+     * @throws \RuntimeException If Swoole is not available or entity doesn't have ID
+     */
+    public function updateAsync(object $entity): \Generator
+    {
+        if (!extension_loaded('swoole')) {
+            throw new \RuntimeException('Swoole extension is required for async operations');
+        }
+
+        yield;
+        return $this->update($entity);
+    }
+
+    /**
+     * Delete entity asynchronously (Swoole only)
+     * 
+     * @param object $entity Domain or storage entity
+     * @return \Generator Yields void when complete
+     * @throws \RuntimeException If Swoole is not available or entity doesn't have ID
+     */
+    public function deleteAsync(object $entity): \Generator
+    {
+        if (!extension_loaded('swoole')) {
+            throw new \RuntimeException('Swoole extension is required for async operations');
+        }
+
+        yield;
+        $this->delete($entity);
+    }
+
+    /**
+     * Get entity metadata (table name, etc.)
+     * 
+     * @param string $entityClass Storage entity class or domain entity class
+     * @return EntityMetadata
+     */
+    public function getEntityMetadata(string $entityClass): EntityMetadata
     {
         if (isset($this->entityMetadata[$entityClass])) {
             return $this->entityMetadata[$entityClass];
@@ -349,16 +483,29 @@ class EntityManager
         $entityClass = get_class($entity);
         try {
             // If it's already a storage entity, metadata will load fine.
-            $this->getEntityMetadata($entityClass);
-            return $entity;
-        } catch (\RuntimeException) {
-            // Not a storage entity; try mapping from domain to storage.
+            $metadata = $this->getEntityMetadata($entityClass);
+            
+            // Reject storage entities - they should not be passed directly
+            // This ensures proper separation between domain and infrastructure layers
+            throw new \RuntimeException(
+                "Storage entity '{$entityClass}' cannot be used directly. " .
+                ($metadata->domainClass 
+                    ? "Use domain class '{$metadata->domainClass}' instead, or use a repository."
+                    : "Use a repository or configure domainClass in #[AsEntity] attribute."
+                ) . " This ensures proper separation between domain and infrastructure layers."
+            );
+        } catch (\RuntimeException $e) {
+            // If it's our validation exception, re-throw it
+            if (str_contains($e->getMessage(), 'cannot be used directly')) {
+                throw $e;
+            }
+            // Otherwise, it's not a storage entity; try mapping from domain to storage.
         }
 
         $storageClass = EntityMetadataFactory::resolveEntityClassForDomain($entityClass);
 
         if ($storageClass === null) {
-            throw new \RuntimeException("Cannot resolve storage entity for domain class {$entityClass}");
+            throw new \RuntimeException("Cannot resolve storage entity for domain class {$entityClass}. Make sure #[AsEntity] attribute has domainClass parameter configured.");
         }
 
         $storageMetadata = $this->getEntityMetadata($storageClass);

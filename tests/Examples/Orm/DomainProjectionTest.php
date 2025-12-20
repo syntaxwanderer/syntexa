@@ -29,7 +29,9 @@ class DomainProjectionTest extends OrmExampleTestCase
     {
         $this->insert($this->pdo, "INSERT INTO users (id, email, name, address_id) VALUES (1, 'a@example.com', 'Alice', 10)");
 
-        $user = $this->em->find(Storage::class, 1);
+        // Use repository with domain class instead of storage entity
+        $repo = $this->getRepository(Repository::class);
+        $user = $repo->find(1);
 
         $this->assertInstanceOf(Domain::class, $user);
         $this->assertSame(1, $user->getId());
@@ -43,13 +45,14 @@ class DomainProjectionTest extends OrmExampleTestCase
     {
         $this->insert($this->pdo, "INSERT INTO users (id, email, name, address_id) VALUES (1, 'a@example.com', 'Alice', 10)");
 
+        // Use repository with domain class instead of storage entity
+        $repo = $this->getRepository(Repository::class);
         /** @var Domain $user */
-        $user = $this->em->find(Storage::class, 1);
+        $user = $repo->find(1);
         $user->setName('Alice Updated');
 
-        // Persist domain; EntityManager will map back to storage and issue UPDATE
-        $this->em->persist($user);
-        $this->em->flush();
+        // Update domain via repository; EntityManager will map back to storage and issue UPDATE
+        $repo->update($user);
 
         $row = $this->pdo->query('SELECT name, address_id FROM users WHERE id = 1')->fetch();
         $this->assertSame('Alice Updated', $row['name']);
@@ -61,7 +64,7 @@ class DomainProjectionTest extends OrmExampleTestCase
     {
         $this->insert($this->pdo, "INSERT INTO users (id, email, name, address_id) VALUES (2, 'b@example.com', 'Bob', NULL)");
 
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
         /** @var Domain $user */
         $user = $repo->find(2);
 
@@ -69,8 +72,7 @@ class DomainProjectionTest extends OrmExampleTestCase
         $this->assertSame('Bob', $user->getName());
 
         $user->setName('Bobby');
-        $repo->save($user);
-        $repo->flush();
+        $repo->update($user);
 
         $row = $this->pdo->query('SELECT name FROM users WHERE id = 2')->fetch();
         $this->assertSame('Bobby', $row['name']);
@@ -81,17 +83,18 @@ class DomainProjectionTest extends OrmExampleTestCase
      */
     public function testCreateFromDomain(): void
     {
-        // Create domain object only
-        $user = new Domain();
+        $repo = $this->getRepository(Repository::class);
+        
+        // Create domain object via repository (recommended way)
+        $user = $repo->create();
         $user->setEmail('domain-create@example.com');
         $user->setName('Domain Created');
 
-        // Persist domain; EntityManager resolves storage and inserts row
-        $this->em->persist($user);
-        $this->em->flush();
+        // Save domain via repository; EntityManager resolves storage and inserts row
+        $repo->save($user);
 
         // Reload via repository as Domain
-        $repo = new Repository($this->em);
+        $repo = $this->getRepository(Repository::class);
         $loaded = $repo->findOneBy(['email' => 'domain-create@example.com']);
         $this->assertInstanceOf(Domain::class, $loaded);
         $this->assertSame('Domain Created', $loaded->getName());

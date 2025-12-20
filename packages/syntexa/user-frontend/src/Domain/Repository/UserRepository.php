@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Syntexa\UserFrontend\Domain\Repository;
 
-use Syntexa\UserFrontend\Domain\Entity\User;
+use Syntexa\Modules\UserFrontend\Domain\User;
 use Syntexa\Orm\Entity\EntityManager;
 use DI\Attribute\Inject;
 
@@ -15,7 +15,7 @@ interface UserRepositoryInterface
 {
     public function findByEmail(string $email): ?User;
     public function findById(int $id): ?User;
-    public function save(User $user): void;
+    public function save(User $user): User;
     public function exists(string $email): bool;
 }
 
@@ -39,10 +39,9 @@ class UserRepository implements UserRepositoryInterface
         return $this->em->find(User::class, $id);
     }
 
-    public function save(User $user): void
+    public function save(User $user): User
     {
-        $this->em->persist($user);
-        $this->em->flush();
+        return $this->em->save($user);
     }
 
     public function exists(string $email): bool

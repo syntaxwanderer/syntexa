@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Syntexa\Tests\Examples\Orm;
 
-use Syntexa\Tests\Examples\Fixtures\User\Storage as UserStorage;
-use Syntexa\Tests\Examples\Fixtures\Post\Storage as PostStorage;
 use Syntexa\Tests\Examples\Fixtures\Post\Domain as PostDomain;
 use Syntexa\Tests\Examples\Fixtures\User\Domain as UserDomain;
+use Syntexa\Tests\Examples\Fixtures\User\Repository as UserRepository;
+use Syntexa\Tests\Examples\Fixtures\Post\Repository as PostRepository;
 use Syntexa\Orm\Mapping\LazyProxy;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 
@@ -54,39 +54,39 @@ class RelationshipLoadingTest extends OrmExampleTestCase
      */
     public function testLazyLoading(): void
     {
-        // Create user
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('lazy@example.com');
-        $userStorage->setName('Lazy User');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('lazy@example.com');
+        $user->setName('Lazy User');
+        $savedUser = $userRepo->save($user);
 
-        $userId = $userStorage->getId();
+        $userId = $savedUser->getId();
 
-        // Create post
-        $postStorage = new PostStorage();
-        $postStorage->setTitle('Lazy Post');
-        $postStorage->setContent('Content');
-        $postStorage->setUserId($userId);
-        $this->em->persist($postStorage);
-        $this->em->flush();
+        // Create post using domain entity and repository
+        $postRepo = $this->getRepository(PostRepository::class);
+        $post = $postRepo->create();
+        $post->setTitle('Lazy Post');
+        $post->setContent('Content');
+        $post->setUserId($userId);
+        $savedPost = $postRepo->save($post);
 
-        // Load post (returns domain object)
-        $post = $this->em->find(PostStorage::class, $postStorage->getId());
-        $this->assertInstanceOf(PostDomain::class, $post);
+        // Load post using repository (returns domain object)
+        $loadedPost = $postRepo->find($savedPost->getId());
+        $this->assertInstanceOf(PostDomain::class, $loadedPost);
 
         // Initially, user property contains LazyProxy
-        $user = $post->getUser();
-        $this->assertNotNull($user);
+        $loadedUser = $loadedPost->getUser();
+        $this->assertNotNull($loadedUser);
         
         // On first access, LazyProxy loads the actual UserDomain
-        $this->assertInstanceOf(UserDomain::class, $user);
-        $this->assertSame('lazy@example.com', $user->getEmail());
-        $this->assertSame('Lazy User', $user->getName());
+        $this->assertInstanceOf(UserDomain::class, $loadedUser);
+        $this->assertSame('lazy@example.com', $loadedUser->getEmail());
+        $this->assertSame('Lazy User', $loadedUser->getName());
 
         // Subsequent access returns the same loaded entity (no additional queries)
-        $user2 = $post->getUser();
-        $this->assertSame($user, $user2); // Same instance
+        $user2 = $loadedPost->getUser();
+        $this->assertSame($loadedUser, $user2); // Same instance
     }
 
     /**
@@ -94,25 +94,25 @@ class RelationshipLoadingTest extends OrmExampleTestCase
      */
     public function testLazyProxyMethodForwarding(): void
     {
-        // Create user and post
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('proxy@example.com');
-        $userStorage->setName('Proxy User');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user and post using domain entities and repositories
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('proxy@example.com');
+        $user->setName('Proxy User');
+        $savedUser = $userRepo->save($user);
 
-        $postStorage = new PostStorage();
-        $postStorage->setTitle('Proxy Post');
-        $postStorage->setContent('Content');
-        $postStorage->setUserId($userStorage->getId());
-        $this->em->persist($postStorage);
-        $this->em->flush();
+        $postRepo = $this->getRepository(PostRepository::class);
+        $post = $postRepo->create();
+        $post->setTitle('Proxy Post');
+        $post->setContent('Content');
+        $post->setUserId($savedUser->getId());
+        $savedPost = $postRepo->save($post);
 
-        // Load post
-        $post = $this->em->find(PostStorage::class, $postStorage->getId());
+        // Load post using repository
+        $loadedPost = $postRepo->find($savedPost->getId());
         
         // Access user property (returns LazyProxy initially)
-        $userProxy = $post->getUser();
+        $userProxy = $loadedPost->getUser();
         
         // LazyProxy can forward method calls
         // Note: This works because getUser() already loads the entity
@@ -128,14 +128,17 @@ class RelationshipLoadingTest extends OrmExampleTestCase
      */
     public function testNullRelationship(): void
     {
-        // Create post without user (nullable relationship)
-        $postStorage = new PostStorage();
-        $postStorage->setTitle('Orphan Post');
-        $postStorage->setContent('Content');
+        // This test demonstrates the concept of nullable relationships
         // Note: user_id is required in our schema, so this test would need nullable FK
-        // For now, we'll test with a user that gets deleted
+        // For now, we'll skip this test as it requires nullable foreign keys
+        // In practice, you'd create a post without a user using domain entities and repository:
+        // $postRepo = $this->getRepository(PostRepository::class);
+        // $post = $postRepo->create();
+        // $post->setTitle('Orphan Post');
+        // $post->setContent('Content');
+        // $post->setUserId(null); // If FK is nullable
+        // $postRepo->save($post);
         
-        // This test demonstrates the concept - in practice, you'd have nullable FKs
         $this->assertTrue(true); // Placeholder
     }
 
@@ -147,29 +150,28 @@ class RelationshipLoadingTest extends OrmExampleTestCase
      */
     public function testDomainProjectionWithRelationships(): void
     {
-        // Create user
-        $userStorage = new UserStorage();
-        $userStorage->setEmail('domain@example.com');
-        $userStorage->setName('Domain User');
-        $this->em->persist($userStorage);
-        $this->em->flush();
+        // Create user using domain entity and repository
+        $userRepo = $this->getRepository(UserRepository::class);
+        $user = $userRepo->create();
+        $user->setEmail('domain@example.com');
+        $user->setName('Domain User');
+        $savedUser = $userRepo->save($user);
 
-        // Create post
-        $postStorage = new PostStorage();
-        $postStorage->setTitle('Domain Post');
-        $postStorage->setContent('Content');
-        $postStorage->setUserId($userStorage->getId());
-        $this->em->persist($postStorage);
-        $this->em->flush();
+        // Create post using domain entity and repository
+        $postRepo = $this->getRepository(PostRepository::class);
+        $post = $postRepo->create();
+        $post->setTitle('Domain Post');
+        $post->setContent('Content');
+        $post->setUserId($savedUser->getId());
+        $savedPost = $postRepo->save($post);
 
-        // Load post - returns PostDomain (not PostStorage)
-        $post = $this->em->find(PostStorage::class, $postStorage->getId());
-        $this->assertInstanceOf(PostDomain::class, $post);
+        // Load post using repository - returns PostDomain (not PostStorage)
+        $loadedPost = $postRepo->find($savedPost->getId());
+        $this->assertInstanceOf(PostDomain::class, $loadedPost);
 
         // Access user - returns UserDomain (not UserStorage)
-        $user = $post->getUser();
-        $this->assertInstanceOf(UserDomain::class, $user);
-        $this->assertNotInstanceOf(UserStorage::class, $user);
+        $loadedUser = $loadedPost->getUser();
+        $this->assertInstanceOf(UserDomain::class, $loadedUser);
     }
 }
 
