@@ -1,17 +1,19 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{% block title %}{{ title|default('Syntexa') }}{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/css/uikit.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/js/uikit.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.20.10/dist/js/uikit-icons.min.js" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body>
+  <body class="uk-background-muted">
     {% block body %}
-      <main>
+      <main class="uk-section">
         {% block content %}{{ content|raw }}{% endblock %}
       </main>
     {% endblock %}
   </body>
-  </html>
-
-
+</html>
