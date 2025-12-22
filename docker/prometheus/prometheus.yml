@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Blockchain Server
+  - job_name: 'blockchain-server'
+    static_configs:
+      - targets: ['php-blockchain-server:8080']
+        labels:
+          node: 'blockchain-server'
+          role: 'validator'
+
+  # Shop 1
+  - job_name: 'shop1'
+    static_configs:
+      - targets: ['php-shop1:8081']
+        labels:
+          node: 'shop1'
+          role: 'shop'
+
+  # Shop 2
+  - job_name: 'shop2'
+    static_configs:
+      - targets: ['php-shop2:8082']
+        labels:
+          node: 'shop2'
+          role: 'shop'
+
+  # PostgreSQL databases
+  - job_name: 'postgres-app'
+    static_configs:
+      - targets: ['postgres-app:5432']
+        labels:
+          database: 'main'
+
+  - job_name: 'postgres-node1-blockchain'
+    static_configs:
+      - targets: ['postgres-node1-blockchain:5432']
+        labels:
+          database: 'blockchain-node1'
+
+  - job_name: 'postgres-node2-blockchain'
+    static_configs:
+      - targets: ['postgres-node2-blockchain:5432']
+        labels:
+          database: 'blockchain-node2'
+
+  # RabbitMQ
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'
+

@@ -1,0 +1,278 @@
+services:
+  # Main application database
+  postgres-app:
+    image: postgres:16-alpine
+    container_name: syntexa-postgres-app
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-syntexa}
+    ports:
+      - "${DB_PORT:-5437}:5432"
+    volumes:
+      - postgres-app-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # RabbitMQ for production blockchain (separate vhost from tests)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: syntexa-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
+      RABBITMQ_DEFAULT_PASS: ${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
+      RABBITMQ_DEFAULT_VHOST: /production
+    ports:
+      - "${BLOCKCHAIN_RABBITMQ_PORT:-5674}:5672"
+      - "${BLOCKCHAIN_RABBITMQ_MGMT_PORT:-15674}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    # Note: VHosts will be created automatically on first connection
+    # If needed, create manually: docker exec syntexa-rabbitmq rabbitmqctl add_vhost /production
+
+  # PostgreSQL for node1 blockchain database (production)
+  postgres-node1-blockchain:
+    image: postgres:16-alpine
+    container_name: syntexa-postgres-node1-blockchain
+    environment:
+      POSTGRES_USER: ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      POSTGRES_PASSWORD: ${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      POSTGRES_DB: ${BLOCKCHAIN_DB_NAME:-syntexa}_node1_blockchain
+    ports:
+      - "${BLOCKCHAIN_NODE1_DB_PORT:-5438}:5432"
+    volumes:
+      - postgres-node1-blockchain-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # PostgreSQL for node2 blockchain database (production)
+  postgres-node2-blockchain:
+    image: postgres:16-alpine
+    container_name: syntexa-postgres-node2-blockchain
+    environment:
+      POSTGRES_USER: ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      POSTGRES_PASSWORD: ${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      POSTGRES_DB: ${BLOCKCHAIN_DB_NAME:-syntexa}_node2_blockchain
+    ports:
+      - "${BLOCKCHAIN_NODE2_DB_PORT:-5439}:5432"
+    volumes:
+      - postgres-node2-blockchain-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # 1. Central Blockchain Server (Validator/Discovery Maker) - Port 8080
+  php-blockchain-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntexa-blockchain-server
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-app
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - BLOCKCHAIN_ENABLED=true
+      - BLOCKCHAIN_DB_HOST=postgres-node1-blockchain
+      - BLOCKCHAIN_DB_PORT=5432
+      - BLOCKCHAIN_DB_NAME=${BLOCKCHAIN_DB_NAME:-syntexa}_node1_blockchain
+      - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - BLOCKCHAIN_RABBITMQ_PORT=5672
+      - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
+      - BLOCKCHAIN_NODE_ID=blockchain-server
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - SWOOLE_HOST=0.0.0.0
+      - SWOOLE_PORT=8080
+      - APP_NAME=Blockchain Server
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres-node1-blockchain:
+        condition: service_healthy
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    command: ["php", "server.php"]
+
+  # 2. Shop/Office 1 - Port 8081
+  php-shop1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntexa-shop1
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-app
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - BLOCKCHAIN_ENABLED=true
+      - BLOCKCHAIN_DB_HOST=postgres-node2-blockchain
+      - BLOCKCHAIN_DB_PORT=5432
+      - BLOCKCHAIN_DB_NAME=${BLOCKCHAIN_DB_NAME:-syntexa}_node2_blockchain
+      - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - BLOCKCHAIN_RABBITMQ_PORT=5672
+      - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
+      - BLOCKCHAIN_NODE_ID=shop1
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - SWOOLE_HOST=0.0.0.0
+      - SWOOLE_PORT=8081
+      - APP_NAME=Shop 1
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres-node2-blockchain:
+        condition: service_healthy
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    command: ["php", "server.php"]
+
+  # 3. Shop/Office 2 - Port 8082
+  php-shop2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntexa-shop2
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-app
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - BLOCKCHAIN_ENABLED=true
+      - BLOCKCHAIN_DB_HOST=postgres-node2-blockchain
+      - BLOCKCHAIN_DB_PORT=5432
+      - BLOCKCHAIN_DB_NAME=${BLOCKCHAIN_DB_NAME:-syntexa}_node2_blockchain
+      - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - BLOCKCHAIN_RABBITMQ_PORT=5672
+      - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
+      - BLOCKCHAIN_NODE_ID=shop2
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - SWOOLE_HOST=0.0.0.0
+      - SWOOLE_PORT=8082
+      - APP_NAME=Shop 2
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres-node2-blockchain:
+        condition: service_healthy
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    command: ["php", "server.php"]
+
+  # Monitoring: Prometheus (metrics collection)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: syntexa-prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # Monitoring: Grafana (visualization)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: syntexa-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+volumes:
+  postgres-app-data:
+  postgres-node1-blockchain-data:
+  postgres-node2-blockchain-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  syntexa-network:
+    driver: bridge
+
