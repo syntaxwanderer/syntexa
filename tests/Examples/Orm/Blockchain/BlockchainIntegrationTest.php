@@ -18,6 +18,7 @@ use Syntexa\Tests\Examples\Fixtures\Post\Storage as PostStorage;
 use Syntexa\Tests\Examples\Fixtures\User\Domain as UserDomain;
 use Syntexa\Tests\Examples\Fixtures\User\Storage as UserStorage;
 use Syntexa\Tests\Examples\Orm\OrmExampleTestCase;
+use Syntexa\Tests\Examples\Orm\PostgresTestHelper;
 
 /**
  * Integration tests for blockchain functionality
@@ -39,10 +40,20 @@ class BlockchainIntegrationTest extends OrmExampleTestCase
         parent::setUp();
         
         // Blockchain tests require PostgreSQL (BlockchainStorage uses PostgreSQL-specific SQL)
+        // Ensure PostgreSQL is available via PostgresTestHelper
+        if (!PostgresTestHelper::isEnabled()) {
+            $this->fail('Blockchain tests require PostgreSQL. Set TEST_WITH_SQLITE=0 or ensure PostgreSQL is available.');
+        }
+        
+        // Ensure PostgreSQL container is running
+        if (!PostgresTestHelper::ensureContainerRunning()) {
+            $this->fail('PostgreSQL container is not available. Ensure Docker containers are running (bootstrap should start them automatically). Run: docker-compose -f docker-compose.test.yml up -d');
+        }
+        
+        // Verify we're using PostgreSQL, not SQLite fallback
         $driverName = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driverName !== 'pgsql') {
-            $this->markTestSkipped('Blockchain tests require PostgreSQL (uses PostgreSQL-specific SQL)');
-            return;
+            $this->fail('Blockchain tests require PostgreSQL (uses PostgreSQL-specific SQL). Got ' . $driverName . ' instead. Ensure PostgreSQL container is running and PostgresTestHelper::createConnection() succeeds.');
         }
         
         // Use the same database connection as app tests

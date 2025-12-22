@@ -94,37 +94,53 @@ public function testEndToEndFlow(): void
 ### 4. Multi-Node Tests (BFT Consensus)
 
 **Files:**
-- `BlockchainBFTTest.php` - tests BFT consensus with multiple nodes
+- `MultiNodeBlockchainTest.php` - tests multi-node blockchain with RabbitMQ
+- `MultiNodeTestCase.php` - base test case for multi-node tests
+- `NodeSimulator.php` - simulates a blockchain node
 
 **Characteristics:**
-- ✅ Simulates multiple nodes (3+ for BFT)
-- ✅ Tests block proposal, voting, finalization
-- ✅ Tests fork resolution
-- ⚠️ Complex tests, require significant time
+- ✅ Simulates multiple nodes (each with own database)
+- ✅ Shared RabbitMQ exchange (fanout)
+- ✅ Tests transaction publishing and consumption
+- ✅ Tests transaction ordering and consistency
+- ⚠️ Requires Docker Compose (RabbitMQ + multiple PostgreSQL databases)
+
+**Infrastructure:**
+- **RabbitMQ**: Shared message broker (port 5673)
+- **PostgreSQL Node 1**: Shop node blockchain DB (port 5434)
+- **PostgreSQL Node 2**: Trusted server blockchain DB (port 5435)
 
 **Example:**
 ```php
-public function testBFTConsensus(): void
+class MyMultiNodeTest extends MultiNodeTestCase
 {
-    // Create 3 nodes
-    $node1 = $this->createNode('node1');
-    $node2 = $this->createNode('node2');
-    $node3 = $this->createNode('node3');
-    
-    // Node1 proposes block
-    $block = $node1->proposeBlock();
-    
-    // All nodes vote
-    $votes = [
-        $node1->vote($block),
-        $node2->vote($block),
-        $node3->vote($block),
-    ];
-    
-    // Should finalize (2/3+ votes)
-    $this->assertTrue($node1->isFinalized($block));
+    protected int $nodeCount = 2;
+    protected array $nodeIds = ['shop', 'trusted-server'];
+
+    public function testMultiNodeFlow(): void
+    {
+        $shopNode = $this->getNode('shop');
+        $trustedNode = $this->getNode('trusted-server');
+
+        // Shop publishes transaction
+        $tx = $this->createTestTransaction(...);
+        $shopNode->publishTransaction($tx);
+
+        // Trusted server consumes
+        $trustedNode->consumeOneTransaction(2.0);
+
+        // Verify both nodes have transaction
+        $this->assertAllNodesHaveTransaction($tx->transactionId);
+    }
 }
 ```
+
+**How It Works:**
+1. `MultiNodeTestCase` creates multiple `NodeSimulator` instances
+2. Each node has its own PostgreSQL database (isolated)
+3. All nodes connect to the same RabbitMQ exchange (fanout)
+4. When a node publishes, all nodes receive the message (fanout)
+5. Each node stores transactions in its own blockchain database
 
 ## 🛠️ Test Infrastructure
 
@@ -278,6 +294,21 @@ php vendor/bin/phpunit tests/Examples/Orm/Blockchain/BlockchainE2ETest.php
 docker-compose -f docker-compose.test.yml down
 ```
 
+### Multi-Node Tests (Requires RabbitMQ + Multiple DBs)
+```bash
+# Start infrastructure (RabbitMQ + multiple PostgreSQL databases)
+docker-compose -f docker-compose.test.yml up -d
+
+# Wait for services to be ready
+sleep 5
+
+# Run multi-node tests
+php vendor/bin/phpunit tests/Examples/Orm/Blockchain/MultiNodeBlockchainTest.php
+
+# Stop infrastructure
+docker-compose -f docker-compose.test.yml down
+```
+
 ### All Blockchain Tests
 ```bash
 php vendor/bin/phpunit tests/Examples/Orm/Blockchain/
@@ -297,3 +328,131 @@ php vendor/bin/phpunit tests/Examples/Orm/Blockchain/
 3. **Cleanup after tests** - always clean blockchain database in `tearDown()`
 4. **Deterministic tests** - use fixed timestamps for deterministic results
 5. **Small blocks for tests** - use `blockSize: 10` instead of 100 for faster tests
+6. **Multi-node tests** - use `MultiNodeTestCase` for testing distributed blockchain scenarios
+
+## 🔧 Multi-Node Testing Setup
+
+### Prerequisites
+
+1. **Docker Compose** - Required for RabbitMQ and multiple PostgreSQL databases
+2. **ext-amqp** PHP extension - Required for RabbitMQ connectivity
+3. **PostgreSQL** - Multiple databases for different nodes
+
+### Infrastructure Setup
+
+The `docker-compose.test.yml` file provides:
+- **RabbitMQ** (port 5673) - Shared message broker
+- **PostgreSQL Node 1** (port 5434) - Blockchain DB for first node
+- **PostgreSQL Node 2** (port 5435) - Blockchain DB for second node
+
+### Creating Multi-Node Tests
+
+**Step 1: Extend MultiNodeTestCase**
+
+```php
+class MyMultiNodeTest extends MultiNodeTestCase
+{
+    protected int $nodeCount = 2;
+    protected array $nodeIds = ['shop', 'trusted-server'];
+    
+    public function testMyScenario(): void
+    {
+        // Access nodes via $this->getNode('shop')
+        // Or $this->nodes['shop']
+    }
+}
+```
+
+**Step 2: Use Node Simulators**
+
+```php
+$shopNode = $this->getNode('shop');
+$trustedNode = $this->getNode('trusted-server');
+
+// Publish transaction
+$tx = $this->createTestTransaction(...);
+$shopNode->publishTransaction($tx);
+
+// Consume from all nodes
+$this->consumeFromAllNodes(2.0);
+
+// Assert all nodes have transaction
+$this->assertAllNodesHaveTransaction($tx->transactionId);
+```
+
+**Step 3: Helper Methods**
+
+- `consumeFromAllNodes($timeout)` - Consume transactions from all nodes
+- `waitForAllNodesToConsume($expectedCount, $timeout)` - Wait until all nodes consumed expected count
+- `assertAllNodesHaveSameTransactionCount($expectedCount)` - Assert all nodes have same count
+- `assertAllNodesHaveTransaction($transactionId)` - Assert transaction exists in all nodes
+- `getTransactionCounts()` - Get transaction counts for all nodes
+
+### Node Simulator API
+
+**NodeSimulator** provides:
+- `publishTransaction($transaction)` - Publish to RabbitMQ
+- `consumeOneTransaction($timeout)` - Consume one transaction (non-blocking)
+- `consumeAllTransactions($timeout)` - Consume all available transactions
+- `getBlockchainTransactions()` - Get all stored transactions
+- `getLastFinalizedBlockHash()` - Get last finalized block hash
+- `getLastFinalizedHeight()` - Get last finalized block height
+- `cleanup()` - Clean blockchain database
+- `close()` - Close RabbitMQ connection
+
+### Example: Shop + Trusted Server Scenario
+
+```php
+class ShopTrustedServerTest extends MultiNodeTestCase
+{
+    protected int $nodeCount = 2;
+    protected array $nodeIds = ['shop', 'trusted-server'];
+
+    public function testShopPublishesTrustedConsumes(): void
+    {
+        $shopNode = $this->getNode('shop');
+        $trustedNode = $this->getNode('trusted-server');
+
+        // Shop creates and publishes transaction
+        $tx = $this->createTestTransaction(
+            nodeId: 'shop',
+            entityClass: UserStorage::class,
+            entityId: 1,
+            operation: 'save',
+            fields: ['email' => 'test@example.com']
+        );
+        $shopNode->publishTransaction($tx);
+
+        // Trusted server consumes
+        $consumed = $trustedNode->consumeOneTransaction(2.0);
+        $this->assertTrue($consumed);
+
+        // Verify transaction stored
+        $transactions = $trustedNode->getBlockchainTransactions();
+        $this->assertCount(1, $transactions);
+        $this->assertSame($tx->transactionId, $transactions[0]['transaction_id']);
+    }
+}
+```
+
+### Troubleshooting
+
+**Problem: RabbitMQ connection fails**
+- Check if RabbitMQ container is running: `docker ps | grep rabbitmq`
+- Verify port 5673 is not in use
+- Check RabbitMQ logs: `docker logs syntexa-rabbitmq-test`
+
+**Problem: Database connection fails**
+- Check if PostgreSQL containers are running: `docker ps | grep postgres`
+- Verify ports 5434 and 5435 are not in use
+- Check database logs: `docker logs syntexa-postgres-node1-blockchain`
+
+**Problem: Transactions not consumed**
+- Verify RabbitMQ exchange is created (check RabbitMQ management UI)
+- Check queue bindings (each node should have its own queue)
+- Increase timeout in `consumeOneTransaction()` or `consumeAllTransactions()`
+
+**Problem: Tests are slow**
+- Use smaller `blockSize` in config (default: 10 for tests)
+- Reduce `consensusTimeout` (default: 10 seconds)
+- Use `consumeOneTransaction()` instead of `consumeAllTransactions()` when possible

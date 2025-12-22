@@ -44,8 +44,9 @@ abstract class OrmExampleTestCase extends TestCase
                 // Use shared connection for schema cleanup between tests
                 if (self::$sharedPostgresConnection === null) {
                     self::$sharedPostgresConnection = $pdo;
-                    $this->cleanupPostgresSchema();
                 }
+                // Clean up schema before each test to reset sequences
+                $this->cleanupPostgresSchema();
             } else {
                 // Fallback to SQLite if PostgreSQL unavailable
                 $this->pdo = new PDO('sqlite::memory:');
@@ -104,7 +105,7 @@ abstract class OrmExampleTestCase extends TestCase
     }
 
     /**
-     * Clean up PostgreSQL schema between tests (drop all tables)
+     * Clean up PostgreSQL schema between tests (truncate all tables and reset sequences)
      */
     private function cleanupPostgresSchema(): void
     {
@@ -113,19 +114,57 @@ abstract class OrmExampleTestCase extends TestCase
         }
 
         try {
-            // Drop all tables
+            // Get all table names
+            $tables = $this->pdo->query("
+                SELECT tablename 
+                FROM pg_tables 
+                WHERE schemaname = 'public'
+            ")->fetchAll(\PDO::FETCH_COLUMN);
+            
+            if (empty($tables)) {
+                return; // No tables to clean
+            }
+            
+            // Truncate all tables and reset sequences
+            // TRUNCATE is faster than DROP/CREATE and automatically resets sequences
+            $tableList = implode(', ', array_map(function($table) {
+                return $this->pdo->quote($table);
+            }, $tables));
+            
+            // Use TRUNCATE with RESTART IDENTITY to reset sequences
             $this->pdo->exec("
                 DO \$\$ 
                 DECLARE 
                     r RECORD;
+                    table_list TEXT;
                 BEGIN
-                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-                        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-                    END LOOP;
+                    -- Build comma-separated list of tables
+                    SELECT string_agg(quote_ident(tablename), ', ')
+                    INTO table_list
+                    FROM pg_tables 
+                    WHERE schemaname = 'public';
+                    
+                    IF table_list IS NOT NULL THEN
+                        EXECUTE 'TRUNCATE TABLE ' || table_list || ' RESTART IDENTITY CASCADE';
+                    END IF;
                 END \$\$;
             ");
         } catch (\PDOException $e) {
-            // Ignore errors during cleanup
+            // If TRUNCATE fails (e.g., tables don't exist), try DROP as fallback
+            try {
+                $this->pdo->exec("
+                    DO \$\$ 
+                    DECLARE 
+                        r RECORD;
+                    BEGIN
+                        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                        END LOOP;
+                    END \$\$;
+                ");
+            } catch (\PDOException $e2) {
+                // Ignore errors during cleanup
+            }
         }
     }
 

@@ -28,23 +28,6 @@ readonly class Request
         return RequestFactory::create($source);
     }
     
-    /**
-     * Create Request from PHP globals (legacy method)
-     * @deprecated Use Request::create() or RequestFactory::fromGlobals() instead
-     */
-    public static function createFromGlobals(): self
-    {
-        return RequestFactory::fromGlobals();
-    }
-    
-    /**
-     * Create Request from Swoole request object (legacy method)
-     * @deprecated Use Request::create($swooleRequest) or RequestFactory::fromSwoole() instead
-     */
-    public static function createFromSwoole(\Swoole\Http\Request $swooleRequest): self
-    {
-        return RequestFactory::fromSwoole($swooleRequest);
-    }
     
     public function getMethod(): string
     {

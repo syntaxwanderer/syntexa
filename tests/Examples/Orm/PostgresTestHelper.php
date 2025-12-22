@@ -9,12 +9,12 @@ namespace Syntexa\Tests\Examples\Orm;
  */
 class PostgresTestHelper
 {
-    private const CONTAINER_NAME = 'syntexa-postgres-test';
+    private const CONTAINER_NAME = 'test-postgres-test';
     private const COMPOSE_FILE = __DIR__ . '/../../../docker-compose.test.yml';
     
     // Default test values (fallback if .env not found)
     private const DEFAULT_DB_HOST = 'localhost';
-    private const DEFAULT_DB_PORT = 5433;
+    private const DEFAULT_DB_PORT = 5436;
     private const DEFAULT_DB_NAME = 'syntexa_test';
     private const DEFAULT_DB_USER = 'test';
     private const DEFAULT_DB_PASSWORD = 'test';
@@ -47,7 +47,8 @@ class PostgresTestHelper
             }
             
             $dbName = $config['DB_NAME'] ?? self::DEFAULT_DB_NAME;
-            // Append _test suffix to avoid using production database
+            // Docker-compose already appends _test, so we use the name as-is from .env
+            // If DB_NAME doesn't end with _test, append it (for cases where docker-compose isn't used)
             if (!str_ends_with($dbName, '_test')) {
                 $dbName .= '_test';
             }
@@ -237,17 +238,20 @@ class PostgresTestHelper
 
     /**
      * Wait for PostgreSQL to be ready
+     * Connects to 'postgres' database (always exists) to check if server is ready
      */
     private static function waitForHealthy(int $maxAttempts = 30): bool
     {
         for ($i = 0; $i < $maxAttempts; $i++) {
             try {
+                // Connect to 'postgres' database (always exists) to check server readiness
                 $pdo = new \PDO(
-                    sprintf('pgsql:host=%s;port=%s;dbname=%s', self::getDbHost(), self::getDbPort(), self::getDbName()),
+                    sprintf('pgsql:host=%s;port=%s;dbname=postgres', self::getDbHost(), self::getDbPort()),
                     self::getDbUser(),
                     self::getDbPassword(),
                     [\PDO::ATTR_TIMEOUT => 2]
                 );
+                $pdo->query('SELECT 1');
                 $pdo = null; // Close connection
                 return true;
             } catch (\PDOException $e) {
@@ -267,15 +271,40 @@ class PostgresTestHelper
         }
 
         try {
-            $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s', self::getDbHost(), self::getDbPort(), self::getDbName());
-            $pdo = new \PDO($dsn, self::getDbUser(), self::getDbPassword(), [
+            $config = self::getDbConfig();
+            $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s', $config['host'], $config['port'], $config['dbname']);
+            $pdo = new \PDO($dsn, $config['user'], $config['password'], [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
             ]);
 
-            // Create test database if it doesn't exist (should already exist from docker-compose)
             return $pdo;
         } catch (\PDOException $e) {
+            // Try to create database if it doesn't exist
+            if (strpos($e->getMessage(), 'does not exist') !== false) {
+                try {
+                    $config = self::getDbConfig();
+                    // Connect to postgres database to create test database
+                    $adminDsn = sprintf('pgsql:host=%s;port=%s;dbname=postgres', $config['host'], $config['port']);
+                    $adminPdo = new \PDO($adminDsn, $config['user'], $config['password'], [
+                        \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    ]);
+                    // Use identifier quoting for database name (double quotes, not single quotes)
+                    $dbName = str_replace('"', '""', $config['dbname']); // Escape double quotes
+                    $adminPdo->exec(sprintf('CREATE DATABASE "%s"', $dbName));
+                    
+                    // Retry connection
+                    $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s', $config['host'], $config['port'], $config['dbname']);
+                    $pdo = new \PDO($dsn, $config['user'], $config['password'], [
+                        \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                        \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                    ]);
+                    return $pdo;
+                } catch (\PDOException $createError) {
+                    fwrite(STDERR, "Warning: Failed to create PostgreSQL database: " . $createError->getMessage() . "\n");
+                }
+            }
+            
             fwrite(STDERR, "Warning: Failed to connect to PostgreSQL: " . $e->getMessage() . "\n");
             return null;
         }

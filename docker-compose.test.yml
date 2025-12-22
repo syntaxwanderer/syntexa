@@ -1,19 +1,124 @@
 services:
+  # Main test database for application
   postgres-test:
     image: postgres:16-alpine
-    container_name: syntexa-postgres-test
+    container_name: test-postgres-test
     environment:
-      # Use values from .env file, with fallback to test defaults
       POSTGRES_USER: ${DB_USER:-test}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
-      POSTGRES_DB: ${DB_NAME:-syntexa}_test  # Append _test to avoid using production DB
+      POSTGRES_DB: ${DB_NAME:-syntexa}_test
     ports:
-      - "${DB_PORT:-5433}:5432"  # Use port from .env or default 5433
+      - "5436:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-test}"]
       interval: 2s
       timeout: 5s
       retries: 10
     tmpfs:
-      - /var/lib/postgresql/data  # Use tmpfs for faster tests (data lost on container stop)
+      - /var/lib/postgresql/data
+    networks:
+      - test-network
+
+  # RabbitMQ for blockchain multi-node testing (separate vhost for tests)
+  rabbitmq-test:
+    image: rabbitmq:3-management-alpine
+    container_name: test-rabbitmq-test
+    environment:
+      RABBITMQ_DEFAULT_USER: ${BLOCKCHAIN_RABBITMQ_USER:-test}
+      RABBITMQ_DEFAULT_PASS: ${BLOCKCHAIN_RABBITMQ_PASSWORD:-test}
+      # Create separate vhost for tests to isolate queues
+      RABBITMQ_DEFAULT_VHOST: /test
+    ports:
+      - "${BLOCKCHAIN_RABBITMQ_PORT:-5673}:5672"
+      - "${BLOCKCHAIN_RABBITMQ_MGMT_PORT:-15673}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /var/lib/rabbitmq
+    networks:
+      - test-network
+    # Note: VHost /test will be created automatically on first connection
+
+  # PostgreSQL for node1 blockchain database (tests)
+  postgres-node1-blockchain:
+    image: postgres:16-alpine
+    container_name: test-postgres-node1-blockchain
+    environment:
+      POSTGRES_USER: ${DB_USER:-test}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
+      POSTGRES_DB: syntexa_test_node1_blockchain
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-test}"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - test-network
+
+  # PostgreSQL for node2 blockchain database (tests)
+  postgres-node2-blockchain:
+    image: postgres:16-alpine
+    container_name: test-postgres-node2-blockchain
+    environment:
+      POSTGRES_USER: ${DB_USER:-test}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
+      POSTGRES_DB: syntexa_test_node2_blockchain
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-test}"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - test-network
+
+  # PHP container for running tests
+  php-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: test-php-test
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-test
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}_test
+      - DB_USER=${DB_USER:-test}
+      - DB_PASSWORD=${DB_PASSWORD:-test}
+      - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq-test
+      - BLOCKCHAIN_RABBITMQ_PORT=5672
+      - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-test}
+      - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-test}
+      - BLOCKCHAIN_RABBITMQ_VHOST=/test
+      - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain_test}
+      - APP_ENV=test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      postgres-node1-blockchain:
+        condition: service_healthy
+      postgres-node2-blockchain:
+        condition: service_healthy
+    networks:
+      - test-network
+    command: ["php", "vendor/bin/phpunit"]
+
+networks:
+  test-network:
+    driver: bridge
 

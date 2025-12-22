@@ -227,13 +227,6 @@ class DomainRepository
         $this->em->delete($domain);
     }
 
-    /**
-     * @deprecated Use delete() instead
-     */
-    public function remove(object $domain): void
-    {
-        $this->delete($domain);
-    }
 
     /**
      * Save entity asynchronously (Swoole only)
