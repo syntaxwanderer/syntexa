@@ -134,13 +134,14 @@ class RelationshipsTest extends OrmExampleTestCase
         $post1 = $postRepo->create();
         $post1->setTitle('First Post');
         $post1->setContent('Content of first post');
-        $post1->setUserId($savedUser->getId());
+        // Business model: set relation via object, not FK
+        $post1->setUser($savedUser);
         $postRepo->save($post1);
 
         $post2 = $postRepo->create();
         $post2->setTitle('Second Post');
         $post2->setContent('Content of second post');
-        $post2->setUserId($savedUser->getId());
+        $post2->setUser($savedUser);
         $postRepo->save($post2);
 
         // Load posts using repository (returns domain objects)
@@ -149,7 +150,8 @@ class RelationshipsTest extends OrmExampleTestCase
         $this->assertCount(2, $posts);
         $this->assertInstanceOf(PostDomain::class, $posts[0]);
         $this->assertSame('First Post', $posts[0]->getTitle());
-        $this->assertSame($savedUser->getId(), $posts[0]->getUserId());
+        $this->assertNotNull($posts[0]->getUser());
+        $this->assertSame($savedUser->getId(), $posts[0]->getUser()->getId());
         $this->assertSame('Second Post', $posts[1]->getTitle());
 
         // Test lazy loading: accessing user property should load UserDomain
@@ -186,7 +188,8 @@ class RelationshipsTest extends OrmExampleTestCase
             $post = $postRepo->create();
             $post->setTitle("Post {$i}");
             $post->setContent("Content of post {$i}");
-            $post->setUserId($userId);
+            // Business model: set relation via object
+            $post->setUser($savedUser);
             $postRepo->save($post);
         }
 
@@ -196,7 +199,8 @@ class RelationshipsTest extends OrmExampleTestCase
         $this->assertCount(3, $posts);
         foreach ($posts as $post) {
             $this->assertInstanceOf(PostDomain::class, $post);
-            $this->assertSame($userId, $post->getUserId());
+            // Relationship is available via object, not raw FK
+            $this->assertInstanceOf(UserDomain::class, $post->getUser());
         }
     }
 
@@ -284,13 +288,13 @@ class RelationshipsTest extends OrmExampleTestCase
         $post1 = $postRepo->create();
         $post1->setTitle('Repository Post 1');
         $post1->setContent('Content 1');
-        $post1->setUserId($userId);
+        $post1->setUser($savedUser);
         $postRepo->save($post1);
 
         $post2 = $postRepo->create();
         $post2->setTitle('Repository Post 2');
         $post2->setContent('Content 2');
-        $post2->setUserId($userId);
+        $post2->setUser($savedUser);
         $postRepo->save($post2);
 
         // Load user's posts using repository resolved from DI container
@@ -312,7 +316,7 @@ class RelationshipsTest extends OrmExampleTestCase
         $this->assertCount(2, $posts);
         $this->assertInstanceOf(PostDomain::class, $posts[0]);
         $this->assertSame('Repository Post 1', $posts[0]->getTitle());
-        $this->assertSame($userId, $posts[0]->getUserId());
+        $this->assertInstanceOf(UserDomain::class, $posts[0]->getUser());
     }
 }
 

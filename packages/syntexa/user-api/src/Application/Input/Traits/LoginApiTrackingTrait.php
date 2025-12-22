@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Syntexa\User\Application\Input\Traits;
+
+use Syntexa\Core\Attributes\AsRequestPart;
+use Syntexa\User\Application\Input\LoginApiRequest;
+
+#[AsRequestPart(base: LoginApiRequest::class)]
+trait LoginApiTrackingTrait
+{
+    public ?string $utmSource = null;
+    public ?string $utmMedium = null;
+}
+

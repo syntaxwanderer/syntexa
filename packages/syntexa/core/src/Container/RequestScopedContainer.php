@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Syntexa\Core\Container;
 
 use DI\Container;
+use Syntexa\Core\Tenancy\TenantContext;
 
 /**
  * Wrapper for request-scoped services in Swoole
  * 
  * This ensures that services that should be request-scoped
  * are created fresh for each request, preventing data leakage.
+ * Also stores tenant context for request-level isolation.
  */
 class RequestScopedContainer
 {
     private Container $container;
     private array $requestScopedCache = [];
+    private ?TenantContext $tenantContext = null;
 
     public function __construct(Container $container)
     {
@@ -141,11 +144,31 @@ class RequestScopedContainer
     }
 
     /**
-     * Reset request-scoped cache (call after each request)
+     * Set tenant context for current request
+     */
+    public function setTenantContext(TenantContext $tenantContext): void
+    {
+        $this->tenantContext = $tenantContext;
+    }
+
+    /**
+     * Get tenant context for current request
+     */
+    public function getTenantContext(): ?TenantContext
+    {
+        return $this->tenantContext;
+    }
+
+    /**
+     * Reset request-scoped cache and tenant context (call after each request)
+     * 
+     * CRITICAL: This must be called after each request in Swoole to prevent
+     * data leakage between requests/tenants.
      */
     public function reset(): void
     {
         $this->requestScopedCache = [];
+        $this->tenantContext = null; // Clear tenant context to prevent leakage
     }
 }
 

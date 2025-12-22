@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Syntexa\Tests\Examples\Orm;
 
-use Syntexa\Modules\UserFrontend\Domain\User as DomainUser;
-use Syntexa\UserFrontend\Domain\Repository\UserRepository;
+use Syntexa\Modules\UserDomain\Domain\User as DomainUser;
+use Syntexa\UserDomain\Domain\Repository\UserRepository;
 use Syntexa\Infrastructure\Database\User as StorageUser;
 use Syntexa\Orm\Migration\Schema\SchemaBuilder;
 

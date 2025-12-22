@@ -13,6 +13,11 @@ use Syntexa\Orm\Attributes\TimestampColumn;
 use Syntexa\Orm\Mapping\DomainContext;
 use Syntexa\Orm\Mapping\DomainMapperInterface;
 use Syntexa\Orm\Mapping\DefaultDomainMapper;
+use Syntexa\Orm\Blockchain\BlockchainConfig;
+use Syntexa\Orm\Blockchain\BlockchainFieldExtractor;
+use Syntexa\Orm\Blockchain\BlockchainPublisher;
+use Syntexa\Orm\Blockchain\BlockchainTransaction;
+use Syntexa\Orm\Blockchain\TransactionIdGenerator;
 
 /**
  * Stateless Entity Manager
@@ -30,6 +35,12 @@ class EntityManager
     private DomainContext $domainContext;
     private ?DomainMapperInterface $defaultMapper = null;
 
+    // Blockchain integration (optional, enabled via config)
+    private ?BlockchainConfig $blockchainConfig = null;
+    private ?BlockchainFieldExtractor $blockchainFieldExtractor = null;
+    private ?TransactionIdGenerator $transactionIdGenerator = null;
+    private ?BlockchainPublisher $blockchainPublisher = null;
+
     /**
      * @param PDO|object|null $connection Connection (PDO in CLI, PDOProxy in Swoole)
      */
@@ -37,6 +48,19 @@ class EntityManager
     {
         $this->connection = $connection ?? ConnectionPool::get();
         $this->domainContext = $domainContext ?? new DomainContext();
+
+        // Lazy blockchain config (safe, read-only)
+        $this->blockchainConfig = BlockchainConfig::fromEnv();
+
+        if ($this->blockchainConfig->enabled) {
+            $this->blockchainFieldExtractor = new BlockchainFieldExtractor();
+            $this->transactionIdGenerator = new TransactionIdGenerator();
+            $storage = null;
+            if ($this->blockchainConfig->hasBlockchainDb()) {
+                $storage = new \Syntexa\Orm\Blockchain\BlockchainStorage($this->blockchainConfig);
+            }
+            $this->blockchainPublisher = new BlockchainPublisher($this->blockchainConfig, $storage);
+        }
     }
 
     /**
@@ -201,8 +225,15 @@ class EntityManager
     public function save(object $entity): object
     {
         $storage = $this->ensureStorageEntity($entity);
+        $metadata = $this->getEntityMetadata(get_class($storage));
+
+        // Perform database write first (immediate write)
         $this->saveEntity($storage);
-        return $this->mapDomainIfNeeded($this->getEntityMetadata(get_class($storage)), $storage);
+
+        // After successful DB write, publish blockchain transaction (async, non-blocking)
+        $this->publishBlockchainTransaction($storage, $metadata, $entity);
+
+        return $this->mapDomainIfNeeded($metadata, $storage);
     }
 
     /**
@@ -254,9 +285,15 @@ class EntityManager
             throw new \RuntimeException('Cannot remove entity without ID');
         }
 
+        // Create snapshot hash before deletion (for blockchain delete event)
+        $snapshotHash = $this->createSnapshotHash($storage);
+
         $columnName = $identifier->columnName;
         $stmt = $this->connection->prepare("DELETE FROM {$table} WHERE {$columnName} = :id");
         $stmt->execute(['id' => $identifier->convertToDatabaseValue($idValue)]);
+
+        // Publish delete transaction to blockchain (after DB delete)
+        $this->publishBlockchainDeleteTransaction($storage, $metadata, (int) $idValue, $snapshotHash);
     }
 
     /**
@@ -520,6 +557,127 @@ class EntityManager
         }
 
         return $mapper->toStorage($entity, $storage, $storageMetadata, $this->domainContext);
+    }
+
+    /**
+     * Publish blockchain transaction for save/update
+     */
+    private function publishBlockchainTransaction(object $storage, EntityMetadata $metadata, object $domainEntity): void
+    {
+        if (!$this->blockchainConfig?->enabled || !$this->blockchainPublisher || !$this->blockchainFieldExtractor) {
+            return;
+        }
+
+        // Extract identifier
+        $identifier = $metadata->identifier;
+        $idValue = $identifier?->getValue($storage);
+        if ($idValue === null) {
+            // New entity without ID (should not happen after saveEntity for generated IDs)
+            return;
+        }
+
+        // Extract blockchain fields
+        $fields = $this->blockchainFieldExtractor->extractFields($storage, $metadata);
+        if (empty($fields)) {
+            // Nothing to log
+            return;
+        }
+
+        $timestamp = new \DateTimeImmutable();
+        $nodeId = $this->blockchainConfig->nodeId ?? 'node-unknown';
+
+        // Generate transaction ID
+        if (!$this->transactionIdGenerator) {
+            $this->transactionIdGenerator = new TransactionIdGenerator();
+        }
+
+        $operation = $metadata->identifier && $metadata->identifier->getValue($storage) ? 'save' : 'save';
+
+        $transactionId = $this->transactionIdGenerator->generate(
+            $nodeId,
+            $metadata->className,
+            (int) $idValue,
+            $operation,
+            $fields,
+            $timestamp
+        );
+
+        $transaction = new BlockchainTransaction(
+            transactionId: $transactionId,
+            nodeId: $nodeId,
+            entityClass: $metadata->className,
+            entityId: (int) $idValue,
+            operation: $operation,
+            fields: $fields,
+            timestamp: $timestamp,
+            nonce: base64_encode(random_bytes(32)),
+            signature: null,
+            keyVersion: null,
+            publicKey: null,
+            snapshotHash: null,
+            reason: null,
+        );
+
+        $this->blockchainPublisher->publish($transaction);
+    }
+
+    /**
+     * Publish blockchain delete transaction
+     */
+    private function publishBlockchainDeleteTransaction(object $storage, EntityMetadata $metadata, int $id, string $snapshotHash): void
+    {
+        if (!$this->blockchainConfig?->enabled || !$this->blockchainPublisher) {
+            return;
+        }
+
+        $timestamp = new \DateTimeImmutable();
+        $nodeId = $this->blockchainConfig->nodeId ?? 'node-unknown';
+
+        if (!$this->transactionIdGenerator) {
+            $this->transactionIdGenerator = new TransactionIdGenerator();
+        }
+
+        $fields = [
+            'entity_id' => $id,
+            'entity_class' => $metadata->className,
+            'snapshot_hash' => $snapshotHash,
+        ];
+
+        $transactionId = $this->transactionIdGenerator->generate(
+            $nodeId,
+            $metadata->className,
+            $id,
+            'delete',
+            $fields,
+            $timestamp
+        );
+
+        $transaction = new BlockchainTransaction(
+            transactionId: $transactionId,
+            nodeId: $nodeId,
+            entityClass: $metadata->className,
+            entityId: $id,
+            operation: 'delete',
+            fields: $fields,
+            timestamp: $timestamp,
+            nonce: base64_encode(random_bytes(32)),
+            signature: null,
+            keyVersion: null,
+            publicKey: null,
+            snapshotHash: $snapshotHash,
+            reason: null,
+        );
+
+        $this->blockchainPublisher->publish($transaction);
+    }
+
+    /**
+     * Create snapshot hash before delete
+     */
+    private function createSnapshotHash(object $storage): string
+    {
+        // For now, simple serialize-based snapshot
+        return hash('sha256', serialize($storage));
     }
 }
 

@@ -180,19 +180,19 @@ class ContainerFactory
             }
         });
 
-        // User Frontend domain services - request-scoped (new instance each request)
-        $definitions[\Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService::class] = \DI\factory(function () {
-            return new \Syntexa\UserFrontend\Domain\Service\LoginAnalyticsService();
+        // User Domain services - request-scoped (new instance each request)
+        $definitions[\Syntexa\UserDomain\Domain\Service\LoginAnalyticsService::class] = \DI\factory(function () {
+            return new \Syntexa\UserDomain\Domain\Service\LoginAnalyticsService();
         });
 
         // User repository - request-scoped (uses EntityManager)
-        $definitions[\Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface::class] = \DI\factory(function (\DI\Container $c) {
+        $definitions[\Syntexa\UserDomain\Domain\Repository\UserRepositoryInterface::class] = \DI\factory(function (\DI\Container $c) {
             $em = $c->get(\Syntexa\Orm\Entity\EntityManager::class);
-            return new \Syntexa\UserFrontend\Domain\Repository\UserRepository($em);
+            return new \Syntexa\UserDomain\Domain\Repository\UserRepository($em);
         });
 
         // Auth service - request-scoped
-        $definitions[\Syntexa\UserFrontend\Domain\Service\AuthService::class] = \DI\autowire();
+        $definitions[\Syntexa\UserDomain\Domain\Service\AuthService::class] = \DI\autowire();
 
         // Handlers with property injection - use autowire to enable property injection
         $definitions[\Syntexa\UserFrontend\Application\Handler\Request\LoginFormHandler::class] = \DI\autowire();

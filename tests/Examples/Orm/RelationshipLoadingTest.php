@@ -61,14 +61,13 @@ class RelationshipLoadingTest extends OrmExampleTestCase
         $user->setName('Lazy User');
         $savedUser = $userRepo->save($user);
 
-        $userId = $savedUser->getId();
-
         // Create post using domain entity and repository
         $postRepo = $this->getRepository(PostRepository::class);
         $post = $postRepo->create();
         $post->setTitle('Lazy Post');
         $post->setContent('Content');
-        $post->setUserId($userId);
+        // Business model: set relation via object, not FK
+        $post->setUser($savedUser);
         $savedPost = $postRepo->save($post);
 
         // Load post using repository (returns domain object)
@@ -105,7 +104,8 @@ class RelationshipLoadingTest extends OrmExampleTestCase
         $post = $postRepo->create();
         $post->setTitle('Proxy Post');
         $post->setContent('Content');
-        $post->setUserId($savedUser->getId());
+        // Business model: set relation via object
+        $post->setUser($savedUser);
         $savedPost = $postRepo->save($post);
 
         // Load post using repository
@@ -162,7 +162,7 @@ class RelationshipLoadingTest extends OrmExampleTestCase
         $post = $postRepo->create();
         $post->setTitle('Domain Post');
         $post->setContent('Content');
-        $post->setUserId($savedUser->getId());
+        $post->setUser($savedUser);
         $savedPost = $postRepo->save($post);
 
         // Load post using repository - returns PostDomain (not PostStorage)

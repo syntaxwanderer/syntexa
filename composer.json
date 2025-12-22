@@ -33,6 +33,8 @@
             "Syntexa\\Orm\\": "vendor/syntexa/orm/src/",
             "Syntexa\\Modules\\": "src/modules/",
             "Syntexa\\Infrastructure\\": "src/infrastructure/",
+            "Syntexa\\UserDomain\\": "packages/syntexa/user-domain/src/",
+            "Syntexa\\UserFrontend\\": "packages/syntexa/user-frontend/src/",
             "Acme\\Marketing\\": "packages/acme/module-user-marketing/src/",
             "Syntexa\\Tests\\": "tests/"
     },

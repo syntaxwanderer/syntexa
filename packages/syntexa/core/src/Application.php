@@ -7,6 +7,8 @@ namespace Syntexa\Core;
 use Syntexa\Core\Discovery\AttributeDiscovery;
 use Syntexa\Core\Queue\HandlerExecution;
 use Syntexa\Core\Queue\QueueDispatcher;
+use Syntexa\Core\Tenancy\TenantResolver;
+use Syntexa\Core\Tenancy\TenantContext;
 use DI\Container;
 use Syntexa\Core\Container\RequestScopedContainer;
 
@@ -52,6 +54,13 @@ class Application
         
         // Clear superglobals for security (prevent accidental use of unvalidated data)
         \Syntexa\Core\Http\SecurityHelper::clearSuperglobals();
+        
+        // Resolve tenant context (request-scoped, prevents data leakage)
+        $tenantResolver = new TenantResolver($this->environment);
+        $tenantContext = $tenantResolver->resolve($request);
+        
+        // Store tenant context in request-scoped container for access during request handling
+        $this->requestScopedContainer->setTenantContext($tenantContext);
         
         // Initialize attribute discovery
         AttributeDiscovery::initialize();

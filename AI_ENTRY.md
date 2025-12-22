@@ -118,11 +118,21 @@ When working with documentation:
 
 When working with this codebase, you **MUST** follow these rules:
 
-0. **⚠️ LANGUAGE POLICY** - **CRITICAL**: Never use or mention Russian language. This is a sensitive matter. Use Ukrainian (`docs/uk/`) or Italian (`docs/it/`) as translation examples instead.
+0. **⚠️ LANGUAGE POLICY** - **CRITICAL AND MANDATORY**: 
+   - **ALL documentation files MUST be written in English** - this includes:
+     - All README.md files (including in `tests/` directories)
+     - All documentation in `docs/en/` (obviously)
+     - All documentation in `var/docs/` (working directory)
+     - All code comments in documentation files
+     - All test documentation and examples
+   - **Ukrainian (`docs/uk/`) and Italian (`docs/it/`)** are **translations only** - they are examples of translations, NOT the primary language
+   - **NEVER write documentation in Ukrainian or Italian** unless explicitly creating a translation file in `docs/uk/` or `docs/it/`
+   - **If you write documentation in Ukrainian by mistake, you MUST immediately translate it to English**
+   - **Rule of thumb**: If the file is not in `docs/uk/` or `docs/it/`, it MUST be in English
 
 1. **Always start here** - Read this file first
 2. **Check structure** - Understand where things are located
-3. **Use working directory** - Use `var/docs/` for intermediate files
+3. **Use working directory** - Use `var/docs/` for intermediate MD documents (in English!)
 4. **Read documentation** - Check `docs/en/` for detailed information
 5. **Follow conventions** - See `docs/en/guides/CONVENTIONS.md`
 6. **⚠️ UPDATE DOCUMENTATION** - **MANDATORY**: After making changes to framework core code:

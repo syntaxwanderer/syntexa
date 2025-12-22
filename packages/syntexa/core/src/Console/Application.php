@@ -14,7 +14,6 @@ use Syntexa\Core\Console\Command\LayoutGenerateCommand;
 use Syntexa\Core\Console\Command\QueueWorkCommand;
 use Syntexa\Core\Console\Command\UserCreateCommand;
 use Syntexa\Core\Console\Command\TestHandlerCommand;
-use Syntexa\Core\Console\Command\AiCommand;
 
 class Application extends SymfonyApplication
 {
@@ -32,7 +31,6 @@ class Application extends SymfonyApplication
             new QueueWorkCommand(),
             new UserCreateCommand(),
             new TestHandlerCommand(),
-            new AiCommand(),
         ];
 
         // Add ORM commands if available
@@ -47,6 +45,9 @@ class Application extends SymfonyApplication
         }
         if (class_exists(\Syntexa\Orm\Console\Command\DatabaseBuildCommand::class)) {
             $commands[] = new \Syntexa\Orm\Console\Command\DatabaseBuildCommand();
+        }
+        if (class_exists(\Syntexa\Orm\Console\Command\BlockchainConsumeCommand::class)) {
+            $commands[] = new \Syntexa\Orm\Console\Command\BlockchainConsumeCommand();
         }
 
         $this->addCommands($commands);

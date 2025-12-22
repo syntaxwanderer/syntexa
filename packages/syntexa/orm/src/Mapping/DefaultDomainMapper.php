@@ -52,6 +52,9 @@ class DefaultDomainMapper implements DomainMapperInterface
             $column->setPhpValue($storage, $data[$column->propertyName]);
         }
 
+        // Sync relationships (e.g. ManyToOne) from domain objects to storage FK fields
+        $this->mapRelationshipsToStorage($domain, $storage, $metadata);
+
         $this->link($storage, $domain, $metadata, $context);
         return $storage;
     }
@@ -143,6 +146,104 @@ class DefaultDomainMapper implements DomainMapperInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Map relationships from domain model back to storage (for save/update)
+     *
+     * Domain works with related objects (User, Address, etc.),
+     * storage keeps only FK fields (user_id, address_id, ...).
+     */
+    private function mapRelationshipsToStorage(object $domain, object $storage, EntityMetadata $metadata): void
+    {
+        if (empty($metadata->relationships)) {
+            return;
+        }
+
+        foreach ($metadata->relationships as $relationship) {
+            // For now we support FK sync for owning sides: ManyToOne and OneToOne with join column
+            if (!in_array($relationship->type, ['ManyToOne', 'OneToOne'], true)) {
+                continue;
+            }
+
+            $this->syncForeignKeyFromDomain($domain, $storage, $relationship);
+        }
+    }
+
+    /**
+     * Sync a single relationship FK from domain related object to storage entity
+     */
+    private function syncForeignKeyFromDomain(object $domain, object $storage, RelationshipMetadata $relationship): void
+    {
+        // Domain property name, e.g. "user"
+        $propertyName = $relationship->propertyName;
+        $getter = 'get' . ucfirst($propertyName);
+
+        if (!method_exists($domain, $getter)) {
+            return; // Domain doesn't expose this relationship
+        }
+
+        $related = $domain->$getter();
+
+        // Extract ID from related object (UserDomain or LazyProxy)
+        $relatedId = $this->extractRelatedId($related);
+
+        // Write FK into storage entity
+        $this->setForeignKeyValue($storage, $relationship, $relatedId);
+    }
+
+    /**
+     * Extract related entity ID from domain object or LazyProxy
+     */
+    private function extractRelatedId(mixed $related): ?int
+    {
+        if ($related === null) {
+            return null;
+        }
+
+        // If it's a LazyProxy, use its getId()
+        if ($related instanceof LazyProxy) {
+            return $related->getId();
+        }
+
+        // If it's a domain/storage entity with getId()
+        if (method_exists($related, 'getId')) {
+            $id = $related->getId();
+            return $id !== null ? (int) $id : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Set foreign key value on storage entity based on relationship metadata
+     */
+    private function setForeignKeyValue(object $storage, RelationshipMetadata $relationship, ?int $id): void
+    {
+        $fkColumn = $relationship->getForeignKeyColumn();
+        $reflection = new \ReflectionClass($storage);
+
+        // Determine property name that holds FK in storage
+        $candidateProps = [];
+
+        if ($fkColumn !== null) {
+            // Exact match from JoinColumn name
+            $candidateProps[] = $fkColumn;
+            // CamelCase version (user_id -> userId)
+            $candidateProps[] = $this->snakeToCamel($fkColumn);
+        }
+
+        // Fallback: relationship property name + "Id" (user -> userId)
+        $candidateProps[] = $relationship->propertyName . 'Id';
+
+        foreach ($candidateProps as $propName) {
+            if ($reflection->hasProperty($propName)) {
+                $prop = $reflection->getProperty($propName);
+                $prop->setAccessible(true);
+                $prop->setValue($storage, $id);
+                return;
+            }
+        }
     }
 
     /**

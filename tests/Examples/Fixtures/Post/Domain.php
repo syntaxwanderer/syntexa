@@ -8,14 +8,13 @@ use Syntexa\Tests\Examples\Fixtures\User\Domain as UserDomain;
 
 /**
  * Clean domain model for Post
- * Supports both ID-based and object-based relationship access
+ * Business layer works only with related objects (no manual FK management)
  */
 class Domain
 {
     private ?int $id = null;
     private string $title;
     private string $content;
-    private ?int $userId = null; // FK to User (for backward compatibility)
     /** @var UserDomain|\Syntexa\Orm\Mapping\LazyProxy|null */
     private $user = null; // Related User object (lazy loaded, can be LazyProxy or UserDomain)
 
@@ -49,16 +48,6 @@ class Domain
         $this->content = $content;
     }
 
-    public function getUserId(): ?int
-    {
-        return $this->userId;
-    }
-
-    public function setUserId(?int $userId): void
-    {
-        $this->userId = $userId;
-    }
-
     /**
      * Get related User object (lazy loaded)
      * Returns UserDomain or LazyProxy
@@ -80,16 +69,6 @@ class Domain
     public function setUser(UserDomain|\Syntexa\Orm\Mapping\LazyProxy|null $user): void
     {
         $this->user = $user;
-        if ($user !== null) {
-            if ($user instanceof \Syntexa\Orm\Mapping\LazyProxy) {
-                $id = $user->getId();
-                if ($id !== null) {
-                    $this->userId = $id;
-                }
-            } else {
-                $this->userId = $user->getId();
-            }
-        }
     }
 }
 

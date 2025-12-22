@@ -152,6 +152,10 @@ class AttributeDiscovery
 
         foreach ($requestGroups as $baseClass => $candidates) {
             $projectCandidates = array_values(array_filter($candidates, fn ($c) => self::isProjectRequest($c['file'])));
+            // If no project candidates, use packages candidates (for module routes)
+            if (empty($projectCandidates)) {
+                $projectCandidates = array_values(array_filter($candidates, fn ($c) => str_contains($c['file'], '/packages/syntexa/')));
+            }
             if (empty($projectCandidates)) {
                 continue;
             }
