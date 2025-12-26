@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+define('SYNTEXA_SWOOLE', true);
+
 echo "Starting Syntexa server...\n";
 
 use Swoole\Http\Server;
@@ -162,7 +164,10 @@ $server->on("request", function ($request, $response) use ($env, $app, $statsFil
                 $nodes[] = ['name' => 'Local', 'url' => ''];
             }
             
-            $configJson = json_encode(['nodes' => $nodes]);
+            $configJson = json_encode([
+                'nodes' => $nodes,
+                'currentNode' => $env->appName
+            ]);
             $content = str_replace('{{ CLUSTER_CONFIG }}', $configJson, $template);
             $response->end($content);
             return;

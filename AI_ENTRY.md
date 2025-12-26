@@ -59,12 +59,15 @@ The `var/docs/` directory is a **working directory** where AI assistants can:
 
 ## Key Concepts
 
-### 1. Module System
+### 1. Module System & Overlay Architecture
 
-Syntexa uses a modular architecture:
-- **Core packages** (`packages/syntexa/*`) - Framework core functionality
-- **Application modules** (`src/modules/*`) - Application-specific code
-- **Third-party modules** (`packages/acme/*`) - External modules
+Syntexa uses a modular architecture with a powerful prioritization system:
+- **Core packages** (`packages/syntexa/*`) - Framework core functionality (Priority: 200)
+- **Application modules** (`src/modules/*`) - **Overlay Layer** that overrides base logic (Priority: 400)
+- **Third-party modules** (`packages/acme/*`) - External modules (Priority: 250)
+
+> [!NOTE]
+> The `/src` directory is the **Source of project truth**. If a class exists in both a package and `/src`, the framework will use the version in `/src`. See [OVERLAY_ARCHITECTURE.md](docs/en/architecture/OVERLAY_ARCHITECTURE.md) for details.
 
 ### 2. Request/Response/Handler Pattern
 

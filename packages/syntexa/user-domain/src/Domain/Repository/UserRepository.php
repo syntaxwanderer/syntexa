@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Syntexa\UserDomain\Domain\Repository;
 
-use Syntexa\Modules\UserDomain\Domain\User;
+use Syntexa\UserDomain\Domain\Entity\User;
 use Syntexa\Orm\Entity\EntityManager;
 use DI\Attribute\Inject;
 

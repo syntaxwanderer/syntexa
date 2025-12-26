@@ -1,0 +1,15 @@
+{
+    "name": "syntexa/office-overlay-user-frontend",
+    "description": "Office Overlay for User Frontend",
+    "type": "syntexa-module",
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Modules\\UserFrontend\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "template_alias": "user-frontend"
+        }
+    }
+}

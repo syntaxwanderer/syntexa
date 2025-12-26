@@ -13,6 +13,10 @@ declare(strict_types=1);
 // Load Composer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
 
+// Initialize Discovery system (essential for Attributes, Entities, and Modules)
+use Syntexa\Core\Discovery\AttributeDiscovery;
+AttributeDiscovery::initialize();
+
 // Create and run the Symfony Console application
 use Syntexa\Core\Console\Application;
 

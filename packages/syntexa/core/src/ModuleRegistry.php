@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Syntexa\Core;
 
+use Syntexa\Core\Attributes\AsModule;
+use ReflectionClass;
+
 /**
  * Module Registry for managing different types of modules
  * 
@@ -98,6 +101,32 @@ class ModuleRegistry
     public static function getVendorModules(): array
     {
         return self::getModulesByType('vendor');
+    }
+
+    /**
+     * Check if module is active
+     */
+    public static function isActive(string $moduleName): bool
+    {
+        foreach (self::$modules as $module) {
+            if ($module['name'] === $moduleName || in_array($moduleName, $module['aliases'], true)) {
+                return (bool)($module['config']['active'] ?? true);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get node role for a module
+     */
+    public static function getModuleRole(string $moduleName): string
+    {
+        foreach (self::$modules as $module) {
+            if ($module['name'] === $moduleName || in_array($moduleName, $module['aliases'], true)) {
+                return (string)($module['config']['role'] ?? 'observer');
+            }
+        }
+        return 'observer';
     }
     
     /**
@@ -225,7 +254,8 @@ class ModuleRegistry
             'templatePaths' => $templatePaths,
             'controllers' => self::findControllers($path, $namespace),
             'routes' => self::findRoutes($path, $namespace),
-            'autoloadPsr4' => self::resolveAutoloadPsr4($path, $meta['autoload_psr4'] ?? [])
+            'autoloadPsr4' => self::resolveAutoloadPsr4($path, $meta['autoload_psr4'] ?? []),
+            'config' => self::findModuleConfig($path, $namespace)
         ];
         
     }
@@ -322,6 +352,67 @@ class ModuleRegistry
     {
         // This will be implemented when we integrate with AttributeDiscovery
         return [];
+    }
+
+    /**
+     * Find module configuration via AsModule attribute
+     */
+    private static function findModuleConfig(string $path, string $namespace): array
+    {
+        $configFiles = glob($path . '/**/ModuleConfig.php');
+        if (empty($configFiles)) {
+            // Fallback: search any file for AsModule if no ModuleConfig.php found?
+            // No, let's stick to the convention for efficiency
+            $configFiles = glob($path . '/src/ModuleConfig.php');
+        }
+
+        foreach ($configFiles as $file) {
+            $content = file_get_contents($file);
+            if (!preg_match('/class\s+(\w+)/', $content, $matches)) {
+                continue;
+            }
+            $shortName = $matches[1];
+            
+            // Try to infer namespace from path if needed, but we have $namespace
+            // Actually, we need the full class name.
+            // For now, let's assume it's in the root namespace of the module or a sub-namespace
+            // We'll try to require the file and extract attributes
+            
+            try {
+                // Determine full class name
+                if  (preg_match('/namespace\s+([^;]+);/', $content, $nsMatches)) {
+                    $fullClass = $nsMatches[1] . '\\' . $shortName;
+                } else {
+                    $fullClass = $namespace . '\\' . $shortName;
+                }
+
+                if (!class_exists($fullClass)) {
+                    require_once $file;
+                }
+
+                if (class_exists($fullClass)) {
+                    $reflection = new ReflectionClass($fullClass);
+                    $attrs = $reflection->getAttributes(AsModule::class);
+                    if (!empty($attrs)) {
+                        /** @var AsModule $attr */
+                        $attr = $attrs[0]->newInstance();
+                        return [
+                            'name' => $attr->name,
+                            'active' => $attr->active,
+                            'role' => $attr->role,
+                            'class' => $fullClass
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Skip if can't load or reflect
+            }
+        }
+
+        return [
+            'active' => true,
+            'role' => 'observer'
+        ];
     }
 
     private static function discoverPackageModules(string $projectRoot): array

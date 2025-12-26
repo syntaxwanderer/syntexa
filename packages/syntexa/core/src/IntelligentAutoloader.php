@@ -214,10 +214,6 @@ class IntelligentAutoloader
         $classMapSize = count(self::$classMap);
         
         foreach (self::$classMap as $className => $filePath) {
-            // Skip wrapper classes (they are in src/modules/ and may have circular dependencies)
-            if (str_contains($className, 'Syntexa\\Modules\\') && str_contains($filePath, '/src/modules/')) {
-                continue;
-            }
             
             // Load class if not already loaded
             if (!class_exists($className) && !interface_exists($className) && !trait_exists($className)) {

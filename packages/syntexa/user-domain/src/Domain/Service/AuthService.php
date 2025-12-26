@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Syntexa\UserDomain\Domain\Service;
 
-use Syntexa\Modules\UserDomain\Domain\User;
+use Syntexa\UserDomain\Domain\Entity\User;
 use Syntexa\UserDomain\Domain\Repository\UserRepositoryInterface;
 
 /**
@@ -40,13 +40,15 @@ class AuthService
      */
     public function login(User $user): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (!defined('SYNTEXA_SWOOLE') && PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
+            @session_start();
         }
 
-        $_SESSION['user_id'] = $user->getId();
-        $_SESSION['user_email'] = $user->getEmail();
-        $_SESSION['user_name'] = $user->getName();
+        if (isset($_SESSION)) {
+            $_SESSION['user_id'] = $user->getId();
+            $_SESSION['user_email'] = $user->getEmail();
+            $_SESSION['user_name'] = $user->getName();
+        }
     }
 
     /**
@@ -54,12 +56,14 @@ class AuthService
      */
     public function logout(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (!defined('SYNTEXA_SWOOLE') && PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
+            @session_start();
         }
 
-        session_destroy();
-        $_SESSION = [];
+        if (isset($_SESSION)) {
+            session_destroy();
+            $_SESSION = [];
+        }
     }
 
     /**
@@ -67,8 +71,8 @@ class AuthService
      */
     public function isAuthenticated(): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (!defined('SYNTEXA_SWOOLE') && PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
+            @session_start();
         }
 
         return isset($_SESSION['user_id']);
@@ -99,4 +103,3 @@ class AuthService
         return $user;
     }
 }
-

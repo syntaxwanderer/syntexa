@@ -1,0 +1,44 @@
+{# AUTO-GENERATED FROM user-frontend/auth.login. Edit freely in src/. #}
+{% extends '@user-frontend/frame/base.html.twig' %}
+
+{% block title %}{{ title|default('Login') }}{% endblock %}
+
+{% block body %}
+  <div class="uk-background-muted uk-flex uk-flex-middle uk-flex-center" style="min-height: 100vh; padding-top: 60px;">
+    <div class="uk-width-1-1 uk-width-medium@s uk-card uk-card-default uk-card-body uk-box-shadow-large uk-border-rounded uk-padding">
+      <h2 class="uk-card-title uk-text-center uk-text-large uk-margin-medium-bottom">
+        {{ heading|default('Login to Syntexa') }}
+      </h2>
+
+      {% if response.error ?? false %}
+        <div class="uk-alert-danger uk-margin-medium-bottom" uk-alert>
+          <a class="uk-alert-close" uk-close></a>
+          <div class="uk-flex uk-flex-middle">
+            <span class="uk-margin-small-right" uk-icon="icon: warning; ratio: 1.1"></span>
+            <p class="uk-margin-remove">{{ response.error }}</p>
+          </div>
+        </div>
+      {% endif %}
+
+      {% include '@user-frontend/block/login/form.html.twig' with {
+        request: request|default({}),
+        response: response|default({})
+      } %}
+
+      <div class="uk-margin-medium-top">
+        {% include '@user-frontend/block/login/help.html.twig' %}
+      </div>
+
+      <div class="uk-text-center uk-margin-top">
+        <p class="uk-text-muted uk-margin-remove">
+          Don't have an account?
+          <a href="#" class="uk-link-text">Request access</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="uk-container uk-margin-large-top uk-width-large@m">
+    {{ layout_slot('auth.login.sidebar') }}
+  </div>
+{% endblock %}
+

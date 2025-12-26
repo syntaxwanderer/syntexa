@@ -1,0 +1,15 @@
+{
+    "name": "syntexa/module-user-frontend",
+    "description": "Syntexa User Frontend Module",
+    "type": "syntexa-module",
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Modules\\UserFrontend\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "template_alias": "user-frontend"
+        }
+    }
+}

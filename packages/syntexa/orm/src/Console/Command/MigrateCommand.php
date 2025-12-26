@@ -68,29 +68,12 @@ class MigrateCommand extends Command
 
     private function getConnection(): PDO
     {
-        $projectRoot = $this->getProjectRoot();
-        $envFile = $projectRoot . '/.env';
-        $env = [];
-        
-        if (file_exists($envFile)) {
-            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                if (strpos($line, '#') === 0) {
-                    continue;
-                }
-                if (strpos($line, '=') !== false) {
-                    [$key, $value] = explode('=', $line, 2);
-                    $env[trim($key)] = trim($value);
-                }
-            }
-        }
-        
         $dbConfig = [
-            'host' => $env['DB_HOST'] ?? 'localhost',
-            'port' => (int) ($env['DB_PORT'] ?? '5432'),
-            'dbname' => $env['DB_NAME'] ?? 'syntexa',
-            'user' => $env['DB_USER'] ?? 'postgres',
-            'password' => $env['DB_PASSWORD'] ?? '',
+            'host' => Environment::getEnvValue('DB_HOST', 'localhost'),
+            'port' => (int) Environment::getEnvValue('DB_PORT', '5432'),
+            'dbname' => Environment::getEnvValue('DB_NAME', 'syntexa'),
+            'user' => Environment::getEnvValue('DB_USER', 'postgres'),
+            'password' => Environment::getEnvValue('DB_PASSWORD', ''),
         ];
         
         $dsn = sprintf(
@@ -101,8 +84,8 @@ class MigrateCommand extends Command
         );
         
         return new PDO($dsn, $dbConfig['user'], $dbConfig['password'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
         ]);
     }
 

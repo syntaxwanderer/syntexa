@@ -1,0 +1,15 @@
+{
+    "name": "syntexa/module-user-api",
+    "description": "Syntexa User API Module",
+    "type": "syntexa-module",
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Modules\\UserApi\\": "src/"
+        }
+    },
+    "extra": {
+        "syntexa-module": {
+            "template_alias": "user-api"
+        }
+    }
+}

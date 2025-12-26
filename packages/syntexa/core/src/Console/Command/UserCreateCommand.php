@@ -12,8 +12,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
-use Syntexa\UserFrontend\Domain\Entity\User;
-use Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface;
+use Syntexa\UserDomain\Domain\Entity\User;
+use Syntexa\UserDomain\Domain\Repository\UserRepositoryInterface;
 
 class UserCreateCommand extends BaseCommand
 {
@@ -74,7 +74,7 @@ class UserCreateCommand extends BaseCommand
 
         // Get repository
         $container = \Syntexa\Core\Container\ContainerFactory::get();
-        $userRepository = $container->get(\Syntexa\UserFrontend\Domain\Repository\UserRepositoryInterface::class);
+        $userRepository = $container->get(\Syntexa\UserDomain\Domain\Repository\UserRepositoryInterface::class);
 
         // Check if user exists
         if ($userRepository->exists($email)) {
@@ -99,7 +99,6 @@ class UserCreateCommand extends BaseCommand
             $user->setEmail($email);
             $user->setPassword($password);
             $user->setName($name !== '' ? $name : null);
-            $user->initializeTimestamps();
 
             $userRepository->save($user);
 

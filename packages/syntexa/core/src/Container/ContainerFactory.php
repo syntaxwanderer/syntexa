@@ -106,13 +106,13 @@ class ContainerFactory
             }
             
             $dbConfig = [
-                'host' => $env['DB_HOST'] ?? 'localhost',
-                'port' => (int) ($env['DB_PORT'] ?? '5432'),
-                'dbname' => $env['DB_NAME'] ?? 'syntexa',
-                'user' => $env['DB_USER'] ?? 'postgres',
-                'password' => $env['DB_PASSWORD'] ?? '',
-                'charset' => $env['DB_CHARSET'] ?? 'utf8',
-                'pool_size' => (int) ($env['DB_POOL_SIZE'] ?? '10'),
+                'host' => \Syntexa\Core\Environment::getEnvValue('DB_HOST', 'localhost'),
+                'port' => (int) \Syntexa\Core\Environment::getEnvValue('DB_PORT', '5432'),
+                'dbname' => \Syntexa\Core\Environment::getEnvValue('DB_NAME', 'syntexa'),
+                'user' => \Syntexa\Core\Environment::getEnvValue('DB_USER', 'postgres'),
+                'password' => \Syntexa\Core\Environment::getEnvValue('DB_PASSWORD', ''),
+                'charset' => \Syntexa\Core\Environment::getEnvValue('DB_CHARSET', 'utf8'),
+                'pool_size' => (int) \Syntexa\Core\Environment::getEnvValue('DB_POOL_SIZE', '10'),
             ];
             
             // Only initialize if Swoole is available
@@ -157,11 +157,11 @@ class ContainerFactory
                 }
                 
                 $dbConfig = [
-                    'host' => $env['DB_HOST'] ?? 'localhost',
-                    'port' => (int) ($env['DB_PORT'] ?? '5432'),
-                    'dbname' => $env['DB_NAME'] ?? 'syntexa',
-                    'user' => $env['DB_USER'] ?? 'postgres',
-                    'password' => $env['DB_PASSWORD'] ?? '',
+                    'host' => \Syntexa\Core\Environment::getEnvValue('DB_HOST', 'localhost'),
+                    'port' => (int) \Syntexa\Core\Environment::getEnvValue('DB_PORT', '5432'),
+                    'dbname' => \Syntexa\Core\Environment::getEnvValue('DB_NAME', 'syntexa'),
+                    'user' => \Syntexa\Core\Environment::getEnvValue('DB_USER', 'postgres'),
+                    'password' => \Syntexa\Core\Environment::getEnvValue('DB_PASSWORD', ''),
                 ];
                 
                 $dsn = sprintf(

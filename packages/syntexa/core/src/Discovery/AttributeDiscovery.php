@@ -108,7 +108,7 @@ class AttributeDiscovery
         // Find all classes with AsRequest attribute
         $httpRequestClasses = array_filter(
             IntelligentAutoloader::findClassesWithAttribute(AsRequest::class),
-            fn ($class) => str_starts_with($class, 'Syntexa\\')
+            fn ($class) => str_starts_with($class, 'Syntexa\\') && self::isModuleActiveForClass($class)
         );
         $requestMeta = [];
         $requestGroups = [];
@@ -200,7 +200,7 @@ class AttributeDiscovery
         // Find handlers and map to requests
         $httpHandlerClasses = array_filter(
             IntelligentAutoloader::findClassesWithAttribute(AsRequestHandler::class),
-            fn ($class) => str_starts_with($class, 'Syntexa\\')
+            fn ($class) => str_starts_with($class, 'Syntexa\\') && self::isModuleActiveForClass($class)
         );
         foreach ($httpHandlerClasses as $className) {
             try {
@@ -619,5 +619,15 @@ class AttributeDiscovery
         
         return new ReflectionClass($fullClassName);
     }
-    
+
+    private static function isModuleActiveForClass(string $className): bool
+    {
+        $modules = ModuleRegistry::getModules();
+        foreach ($modules as $module) {
+            if (str_starts_with($className, $module['namespace'])) {
+                return ModuleRegistry::isActive($module['name']);
+            }
+        }
+        return true; // Default to active if not recognized as part of a module
+    }
 }

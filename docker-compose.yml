@@ -44,6 +44,46 @@ services:
     # Note: VHosts will be created automatically on first connection
     # If needed, create manually: docker exec syntexa-rabbitmq rabbitmqctl add_vhost /production
 
+    # Search Engine for Observers (Blog, Eshop)
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    container_name: syntexa-opensearch
+    environment:
+      - cluster.name=syntexa-cluster
+      - node.name=syntexa-search
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: syntexa-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+    networks:
+      - syntexa-network
+    restart: unless-stopped
     # PostgreSQL for node1 blockchain database (production)
   postgres-node1-blockchain:
     image: postgres:16-alpine
@@ -94,6 +134,7 @@ services:
     container_name: syntexa-blockchain-server
     volumes:
       - .:/var/www/html
+      - ./nodes/blockchain-server/src:/var/www/html/src
       - ./var/cache:/var/www/html/var/cache
       - ./var/log:/var/www/html/var/log
     environment:
@@ -109,17 +150,19 @@ services:
       - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
       - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
       - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
       - BLOCKCHAIN_RABBITMQ_PORT=5672
       - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
       - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
       - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - RABBITMQ_VHOST=/production
       - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
       - BLOCKCHAIN_NODE_ID=blockchain-server
-      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,office}
       - SWOOLE_HOST=0.0.0.0
       - SWOOLE_PORT=9501
-      - APP_NAME=Blockchain Server
-      - INSPECTOR_CLUSTER=Blockchain Server|http://localhost:8080,Shop 1|http://localhost:8081,Shop 2|http://localhost:8082
+      - APP_NAME=Master Server (Blockchain)
+      - INSPECTOR_CLUSTER=Master Server|http://localhost:8080,Shop 1 (POS)|http://localhost:8081,Blog (Web)|http://localhost:8082,Office (CRM)|http://localhost:8083,Eshop (Online)|http://localhost:8084
     ports:
       - "8080:9501"
     depends_on:
@@ -142,6 +185,7 @@ services:
     container_name: syntexa-shop1
     volumes:
       - .:/var/www/html
+      - ./nodes/shop1/src:/var/www/html/src
       - ./var/cache:/var/www/html/var/cache
       - ./var/log:/var/www/html/var/log
     environment:
@@ -157,16 +201,18 @@ services:
       - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
       - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
       - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
       - BLOCKCHAIN_RABBITMQ_PORT=5672
       - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
       - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
       - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - RABBITMQ_VHOST=/production
       - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
       - BLOCKCHAIN_NODE_ID=shop1
-      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,office}
       - SWOOLE_HOST=0.0.0.0
       - SWOOLE_PORT=9501
-      - APP_NAME=Node 1
+      - APP_NAME=Shop 1 (POS)
     ports:
       - "8081:9501"
     depends_on:
@@ -181,14 +227,15 @@ services:
     restart: unless-stopped
     command: [ "php", "server.php" ]
 
-  # 3. Node 2 - Port 8082
-  php-shop2:
+  # 3. Blog (Web) - Port 8082
+  php-blog:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: syntexa-shop2
+    container_name: syntexa-blog
     volumes:
       - .:/var/www/html
+      - ./nodes/blog/src:/var/www/html/src
       - ./var/cache:/var/www/html/var/cache
       - ./var/log:/var/www/html/var/log
     environment:
@@ -204,16 +251,21 @@ services:
       - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
       - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
       - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
       - BLOCKCHAIN_RABBITMQ_PORT=5672
       - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
       - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
       - BLOCKCHAIN_RABBITMQ_VHOST=/production
+      - RABBITMQ_VHOST=/production
       - BLOCKCHAIN_RABBITMQ_EXCHANGE=${BLOCKCHAIN_RABBITMQ_EXCHANGE:-syntexa_blockchain}
-      - BLOCKCHAIN_NODE_ID=shop2
-      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
+      - BLOCKCHAIN_NODE_ID=blog
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,office}
       - SWOOLE_HOST=0.0.0.0
       - SWOOLE_PORT=9501
-      - APP_NAME=Node 2
+      - APP_NAME=Blog (Website)
+      - SEARCH_ENGINE=opensearch
+      - SEARCH_HOST=opensearch
     ports:
       - "8082:9501"
     depends_on:
@@ -223,6 +275,85 @@ services:
         condition: service_healthy
       postgres-node2-blockchain:
         condition: service_healthy
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    command: [ "php", "server.php" ]
+
+  # 4. Office (CRM/ERP) - Port 8083
+  php-office:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntexa-office
+    volumes:
+      - .:/var/www/html
+      - ./nodes/office/src:/var/www/html/src
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-app
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - BLOCKCHAIN_ENABLED=true
+      - BLOCKCHAIN_DB_HOST=postgres-node1-blockchain
+      - BLOCKCHAIN_DB_PORT=5432
+      - BLOCKCHAIN_DB_NAME=${BLOCKCHAIN_DB_NAME:-syntexa}_node1_blockchain
+      - BLOCKCHAIN_DB_USER=${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}
+      - BLOCKCHAIN_DB_PASSWORD=${BLOCKCHAIN_DB_PASSWORD:-${DB_PASSWORD:-postgres}}
+      - BLOCKCHAIN_RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
+      - BLOCKCHAIN_RABBITMQ_PORT=5672
+      - BLOCKCHAIN_RABBITMQ_USER=${BLOCKCHAIN_RABBITMQ_USER:-syntexa}
+      - BLOCKCHAIN_RABBITMQ_PASSWORD=${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}
+      - BLOCKCHAIN_NODE_ID=office
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,office}
+      - SWOOLE_HOST=0.0.0.0
+      - SWOOLE_PORT=9501
+      - APP_NAME=Office (CRM/ERP)
+    ports:
+      - "8083:9501"
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+    command: [ "php", "server.php" ]
+
+  # 5. Eshop (Online) - Port 8084
+  php-eshop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntexa-eshop
+    volumes:
+      - .:/var/www/html
+      - ./nodes/eshop/src:/var/www/html/src
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - DB_HOST=postgres-app
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-syntexa}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - BLOCKCHAIN_NODE_ID=eshop
+      - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,office}
+      - SWOOLE_HOST=0.0.0.0
+      - SWOOLE_PORT=9501
+      - APP_NAME=Online Shop
+      - SEARCH_ENGINE=opensearch
+      - SEARCH_HOST=opensearch
+    ports:
+      - "8084:9501"
+    depends_on:
+      - postgres-app
+      - opensearch
     networks:
       - syntexa-network
     restart: unless-stopped
@@ -335,6 +466,7 @@ volumes:
   rabbitmq-data:
   prometheus-data:
   loki-data:
+  opensearch-data:
 
 
 networks:

@@ -265,6 +265,12 @@ class DatabaseService
    - Same commands/queries in both modes
    - Async handlers available in Swoole
 
+## 🧩 Overlay Architecture
+
+Syntexa uses a unique **Overlay Layer** system. Files in `/src` have higher priority than those in `packages/`. This allows you to override standard module behavior (Requests, Handlers, Entities) without modifying the framework core.
+
+See [OVERLAY_ARCHITECTURE.md](./OVERLAY_ARCHITECTURE.md) for a detailed explanation of the prioritization system.
+
 ## 🎓 Summary
 
 The architecture is:
