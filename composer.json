@@ -27,9 +27,10 @@
     "require-dev": {
         "phpunit/phpunit": "^12.5"
     },
-  "autoload": {
+    "autoload": {
         "psr-4": {
             "Syntexa\\Core\\": "vendor/syntexa/core/src/",
+            "Syntexa\\Inspector\\": "packages/syntexa/inspector/src/",
             "Syntexa\\Orm\\": "vendor/syntexa/orm/src/",
             "Syntexa\\Modules\\": "src/modules/",
             "Syntexa\\Infrastructure\\": "src/infrastructure/",
@@ -37,10 +38,10 @@
             "Syntexa\\UserFrontend\\": "packages/syntexa/user-frontend/src/",
             "Acme\\Marketing\\": "packages/acme/module-user-marketing/src/",
             "Syntexa\\Tests\\": "tests/"
-    },
-    "exclude-from-classmap": [
-      "vendor/twig/twig/src/Test/"
-    ]
+        },
+        "exclude-from-classmap": [
+            "vendor/twig/twig/src/Test/"
+        ]
     },
     "config": {
         "sort-packages": true

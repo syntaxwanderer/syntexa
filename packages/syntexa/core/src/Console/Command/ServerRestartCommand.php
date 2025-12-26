@@ -8,34 +8,54 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Console\Command\Command;
+
+use Symfony\Component\Process\Process;
 
 class ServerRestartCommand extends BaseCommand
 {
     protected function configure(): void
     {
         $this->setName('server:restart')
-            ->setDescription('Restart Swoole HTTP server')
-            ->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to restart', '9501');
+            ->setDescription('Restart Syntexa Environment (Docker)')
+            ->addOption('service', 's', InputOption::VALUE_OPTIONAL, 'Specific service to restart');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $port = $input->getOption('port');
+        $projectRoot = $this->getProjectRoot();
+        $service = $input->getOption('service');
 
-        $stopCommand = new ServerStopCommand();
-        $stopCommand->setApplication($this->getApplication());
-        $stopResult = $stopCommand->run($input, $output);
+        $io->title('Restarting Syntexa Environment (Docker)');
 
-        if ($stopResult !== Command::SUCCESS) {
-            return $stopResult;
+        if (!file_exists($projectRoot . '/docker-compose.yml')) {
+            $io->error('docker-compose.yml not found.');
+            return Command::FAILURE;
         }
 
-        sleep(1);
+        $command = ['docker', 'compose', 'restart'];
+        if ($service) {
+            $command[] = $service;
+            $io->section("Restarting service: $service");
+        } else {
+            $io->section('Restarting all containers...');
+        }
+        
+        $process = new Process($command, $projectRoot);
+        $process->setTimeout(null);
+        
+        $process->run(function ($type, $buffer) use ($io) {
+             $io->write($buffer);
+        });
 
-        $startCommand = new ServerStartCommand();
-        $startCommand->setApplication($this->getApplication());
-        return $startCommand->run($input, $output);
+        if (!$process->isSuccessful()) {
+            $io->error('Failed to restart environment.');
+            return Command::FAILURE;
+        }
+
+        $io->success('Syntexa environment restarted successfully!');
+        return Command::SUCCESS;
     }
 }
 

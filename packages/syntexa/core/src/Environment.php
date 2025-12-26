@@ -34,28 +34,37 @@ readonly class Environment
     
     public static function create(): self
     {
-        $env = self::loadEnv();
+        $fileEnv = self::loadEnv();
+        
+        $get = fn(string $key, $default = null) => 
+            getenv($key) !== false ? getenv($key) : (
+                $_ENV[$key] ?? (
+                    $_SERVER[$key] ?? (
+                        $fileEnv[$key] ?? $default
+                    )
+                )
+            );
         
         return new self(
-            appEnv: $env['APP_ENV'] ?? 'prod',
-            appDebug: (bool) ($env['APP_DEBUG'] ?? '0'),
-            appName: $env['APP_NAME'] ?? 'Syntexa Framework',
-            appHost: $env['APP_HOST'] ?? 'localhost',
-            appPort: (int) ($env['APP_PORT'] ?? '8000'),
-            swoolePort: (int) ($env['SWOOLE_PORT'] ?? '9501'),
-            swooleHost: $env['SWOOLE_HOST'] ?? '0.0.0.0',
-            swooleWorkerNum: (int) ($env['SWOOLE_WORKER_NUM'] ?? '4'),
-            swooleMaxRequest: (int) ($env['SWOOLE_MAX_REQUEST'] ?? '10000'),
-            swooleMaxCoroutine: (int) ($env['SWOOLE_MAX_COROUTINE'] ?? '100000'),
-            swooleLogFile: $env['SWOOLE_LOG_FILE'] ?? 'var/log/swoole.log',
-            swooleLogLevel: (int) ($env['SWOOLE_LOG_LEVEL'] ?? '1'),
-            corsAllowOrigin: $env['CORS_ALLOW_ORIGIN'] ?? '*',
-            corsAllowMethods: $env['CORS_ALLOW_METHODS'] ?? 'GET, POST, PUT, DELETE, OPTIONS',
-            corsAllowHeaders: $env['CORS_ALLOW_HEADERS'] ?? 'Content-Type, Authorization',
-            corsAllowCredentials: (bool) ($env['CORS_ALLOW_CREDENTIALS'] ?? '0'),
-            tenantStrategy: $env['TENANT_STRATEGY'] ?? 'header',
-            tenantHeader: $env['TENANT_HEADER'] ?? 'X-Tenant-ID',
-            tenantDefault: $env['TENANT_DEFAULT'] ?? 'default'
+            appEnv: $get('APP_ENV', 'prod'),
+            appDebug: (bool) $get('APP_DEBUG', '0'),
+            appName: $get('APP_NAME', 'Syntexa Framework'),
+            appHost: $get('APP_HOST', 'localhost'),
+            appPort: (int) $get('APP_PORT', '8000'),
+            swoolePort: (int) $get('SWOOLE_PORT', '9501'),
+            swooleHost: $get('SWOOLE_HOST', '0.0.0.0'),
+            swooleWorkerNum: (int) $get('SWOOLE_WORKER_NUM', '4'),
+            swooleMaxRequest: (int) $get('SWOOLE_MAX_REQUEST', '10000'),
+            swooleMaxCoroutine: (int) $get('SWOOLE_MAX_COROUTINE', '100000'),
+            swooleLogFile: $get('SWOOLE_LOG_FILE', 'var/log/swoole.log'),
+            swooleLogLevel: (int) $get('SWOOLE_LOG_LEVEL', '1'),
+            corsAllowOrigin: $get('CORS_ALLOW_ORIGIN', '*'),
+            corsAllowMethods: $get('CORS_ALLOW_METHODS', 'GET, POST, PUT, DELETE, OPTIONS'),
+            corsAllowHeaders: $get('CORS_ALLOW_HEADERS', 'Content-Type, Authorization'),
+            corsAllowCredentials: (bool) $get('CORS_ALLOW_CREDENTIALS', '0'),
+            tenantStrategy: $get('TENANT_STRATEGY', 'header'),
+            tenantHeader: $get('TENANT_HEADER', 'X-Tenant-ID'),
+            tenantDefault: $get('TENANT_DEFAULT', 'default')
         );
     }
     
@@ -64,13 +73,14 @@ readonly class Environment
         $env = [];
         
         // Load .env file
-        $envFile = __DIR__ . '/../../../.env';
+        // Load .env file
+        $envFile = __DIR__ . '/../../../../.env';
         if (file_exists($envFile)) {
             $env = array_merge($env, self::parseEnvFile($envFile));
         }
         
         // Load .env.local if exists (overrides .env)
-        $envLocalFile = __DIR__ . '/../../../.env.local';
+        $envLocalFile = __DIR__ . '/../../../../.env.local';
         if (file_exists($envLocalFile)) {
             $env = array_merge($env, self::parseEnvFile($envLocalFile));
         }
@@ -148,26 +158,26 @@ readonly class Environment
      */
     public static function getEnvValue(string $key, ?string $default = null): ?string
     {
-        // First check loaded .env files
-        $env = self::loadEnv();
-        if (isset($env[$key])) {
-            return $env[$key];
+        // 1. System Env (getenv)
+        $value = getenv($key);
+        if ($value !== false) {
+            return $value;
         }
-        
-        // Fallback to $_ENV
+
+        // 2. $_ENV
         if (isset($_ENV[$key])) {
             return $_ENV[$key];
         }
         
-        // Fallback to $_SERVER
+        // 3. $_SERVER
         if (isset($_SERVER[$key])) {
             return $_SERVER[$key];
         }
-        
-        // Fallback to getenv()
-        $value = getenv($key);
-        if ($value !== false) {
-            return $value;
+
+        // 4. .env files
+        $env = self::loadEnv();
+        if (isset($env[$key])) {
+            return $env[$key];
         }
         
         return $default;

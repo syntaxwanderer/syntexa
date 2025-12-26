@@ -125,6 +125,9 @@ When working with this codebase, you **MUST** follow these rules:
      - All documentation in `var/docs/` (working directory)
      - All code comments in documentation files
      - All test documentation and examples
+     - **All Grafana dashboards** (`docker/grafana/provisioning/dashboards/*.json`) - titles, descriptions, panel labels, markdown content
+     - **All monitoring service configurations** - comments, labels, descriptions in Prometheus, Loki, Grafana configs
+     - **All Docker Compose service descriptions** - comments and labels
    - **Ukrainian (`docs/uk/`) and Italian (`docs/it/`)** are **translations only** - they are examples of translations, NOT the primary language
    - **NEVER write documentation in Ukrainian or Italian** unless explicitly creating a translation file in `docs/uk/` or `docs/it/`
    - **If you write documentation in Ukrainian by mistake, you MUST immediately translate it to English**

@@ -11,6 +11,7 @@ use Syntexa\Core\Tenancy\TenantResolver;
 use Syntexa\Core\Tenancy\TenantContext;
 use DI\Container;
 use Syntexa\Core\Container\RequestScopedContainer;
+use Syntexa\Inspector\Profiler;
 
 /**
  * Minimal Syntexa Application
@@ -45,7 +46,8 @@ class Application
     
     public function handleRequest(Request $request): Response
     {
-        $runId = 'initial';
+        return Profiler::measure('Application::handleRequest', function() use ($request) {
+            $runId = 'initial';
         $segmentStart = microtime(true);
         $this->debugLog('H1', 'Application::handleRequest', 'request_received', [
             'path' => $request->getPath(),
@@ -88,11 +90,13 @@ class Application
         }
 
         return $this->notFound($request);
+        });
     }
     
     private function handleRoute(array $route, Request $request): Response
     {
-        try {
+        return Profiler::measure('Application::handleRoute', function() use ($route, $request) {
+            try {
             // Request/Handler flow
             if (($route['type'] ?? null) === 'http-request') {
                 $runId = 'initial';
@@ -323,6 +327,7 @@ class Application
         } catch (\Throwable $e) {
             return \Syntexa\Core\Http\ErrorRenderer::render($e, $request);
         }
+        });
     }
     
     private function helloWorld(Request $request): Response

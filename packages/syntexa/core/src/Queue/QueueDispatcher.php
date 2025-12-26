@@ -32,6 +32,26 @@ class QueueDispatcher
         $transport = QueueTransportRegistry::create($transportName);
         $transport->publish($queueName, $message->toJson());
 
+        // Record to Inspector
+        if (class_exists('Swoole\Coroutine')) {
+            $context = \Swoole\Coroutine::getContext();
+            if ($context) {
+                if (!isset($context['inspector_segments'])) {
+                    $context['inspector_segments'] = [];
+                }
+                $context['inspector_segments'][] = [
+                    'type' => 'queue',
+                    'timestamp' => microtime(true),
+                    'payload' => [
+                        'queue' => $queueName,
+                        'transport' => $transportName,
+                        'handler' => $handlerMeta['class'],
+                        'request' => get_class($requestDto),
+                    ]
+                ];
+            }
+        }
+
     }
 }
 

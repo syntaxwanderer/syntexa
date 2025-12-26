@@ -3,53 +3,51 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  # Blockchain Server
-  - job_name: 'blockchain-server'
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
     static_configs:
-      - targets: ['php-blockchain-server:8080']
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'syntexa-host'
+
+  # PostgreSQL Exporter (database metrics)
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          database: 'main'
+
+  # RabbitMQ Exporter
+  - job_name: 'rabbitmq-exporter'
+    static_configs:
+      - targets: ['rabbitmq-exporter:9419']
+        labels:
+          service: 'rabbitmq'
+
+  # Blockchain Server (Swoole metrics)
+  - job_name: 'blockchain-server'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['php-blockchain-server:9501']
         labels:
           node: 'blockchain-server'
           role: 'validator'
 
-  # Shop 1
+  # Shop 1 (Swoole metrics)
   - job_name: 'shop1'
+    metrics_path: '/metrics'
     static_configs:
-      - targets: ['php-shop1:8081']
+      - targets: ['php-shop1:9501']
         labels:
           node: 'shop1'
           role: 'shop'
 
-  # Shop 2
+  # Shop 2 (Swoole metrics)
   - job_name: 'shop2'
+    metrics_path: '/metrics'
     static_configs:
-      - targets: ['php-shop2:8082']
+      - targets: ['php-shop2:9501']
         labels:
           node: 'shop2'
           role: 'shop'
-
-  # PostgreSQL databases
-  - job_name: 'postgres-app'
-    static_configs:
-      - targets: ['postgres-app:5432']
-        labels:
-          database: 'main'
-
-  - job_name: 'postgres-node1-blockchain'
-    static_configs:
-      - targets: ['postgres-node1-blockchain:5432']
-        labels:
-          database: 'blockchain-node1'
-
-  - job_name: 'postgres-node2-blockchain'
-    static_configs:
-      - targets: ['postgres-node2-blockchain:5432']
-        labels:
-          database: 'blockchain-node2'
-
-  # RabbitMQ
-  - job_name: 'rabbitmq'
-    static_configs:
-      - targets: ['rabbitmq:15692']
-        labels:
-          service: 'rabbitmq'
 

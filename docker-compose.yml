@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres-app-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,7 +34,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -44,7 +44,7 @@ services:
     # Note: VHosts will be created automatically on first connection
     # If needed, create manually: docker exec syntexa-rabbitmq rabbitmqctl add_vhost /production
 
-  # PostgreSQL for node1 blockchain database (production)
+    # PostgreSQL for node1 blockchain database (production)
   postgres-node1-blockchain:
     image: postgres:16-alpine
     container_name: syntexa-postgres-node1-blockchain
@@ -57,7 +57,7 @@ services:
     volumes:
       - postgres-node1-blockchain-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -78,7 +78,7 @@ services:
     volumes:
       - postgres-node2-blockchain-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${BLOCKCHAIN_DB_USER:-${DB_USER:-postgres}}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -117,10 +117,11 @@ services:
       - BLOCKCHAIN_NODE_ID=blockchain-server
       - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
       - SWOOLE_HOST=0.0.0.0
-      - SWOOLE_PORT=8080
+      - SWOOLE_PORT=9501
       - APP_NAME=Blockchain Server
+      - INSPECTOR_CLUSTER=Blockchain Server|http://localhost:8080,Shop 1|http://localhost:8081,Shop 2|http://localhost:8082
     ports:
-      - "8080:8080"
+      - "8080:9501"
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -131,9 +132,9 @@ services:
     networks:
       - syntexa-network
     restart: unless-stopped
-    command: ["php", "server.php"]
+    command: [ "php", "server.php" ]
 
-  # 2. Shop/Office 1 - Port 8081
+  # 2. Node 1 - Port 8081
   php-shop1:
     build:
       context: .
@@ -164,10 +165,10 @@ services:
       - BLOCKCHAIN_NODE_ID=shop1
       - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
       - SWOOLE_HOST=0.0.0.0
-      - SWOOLE_PORT=8081
-      - APP_NAME=Shop 1
+      - SWOOLE_PORT=9501
+      - APP_NAME=Node 1
     ports:
-      - "8081:8081"
+      - "8081:9501"
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -178,9 +179,9 @@ services:
     networks:
       - syntexa-network
     restart: unless-stopped
-    command: ["php", "server.php"]
+    command: [ "php", "server.php" ]
 
-  # 3. Shop/Office 2 - Port 8082
+  # 3. Node 2 - Port 8082
   php-shop2:
     build:
       context: .
@@ -211,10 +212,10 @@ services:
       - BLOCKCHAIN_NODE_ID=shop2
       - BLOCKCHAIN_PARTICIPANTS=${BLOCKCHAIN_PARTICIPANTS:-blockchain-server,shop1,shop2}
       - SWOOLE_HOST=0.0.0.0
-      - SWOOLE_PORT=8082
-      - APP_NAME=Shop 2
+      - SWOOLE_PORT=9501
+      - APP_NAME=Node 2
     ports:
-      - "8082:8082"
+      - "8082:9501"
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -225,7 +226,55 @@ services:
     networks:
       - syntexa-network
     restart: unless-stopped
-    command: ["php", "server.php"]
+    command: [ "php", "server.php" ]
+
+  # Monitoring: Node Exporter (system metrics)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: syntexa-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "9100:9100"
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # Monitoring: PostgreSQL Exporter (database metrics)
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: syntexa-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres-app:5432/${DB_NAME:-syntexa}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres-app
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # Monitoring: RabbitMQ Exporter
+  rabbitmq-exporter:
+    image: kbudde/rabbitmq-exporter:latest
+    container_name: syntexa-rabbitmq-exporter
+    environment:
+      RABBIT_URL: "http://rabbitmq:15672"
+      RABBIT_USER: "${BLOCKCHAIN_RABBITMQ_USER:-syntexa}"
+      RABBIT_PASSWORD: "${BLOCKCHAIN_RABBITMQ_PASSWORD:-syntexa}"
+    ports:
+      - "9419:9419"
+    depends_on:
+      - rabbitmq
+    networks:
+      - syntexa-network
+    restart: unless-stopped
 
   # Monitoring: Prometheus (metrics collection)
   prometheus:
@@ -241,25 +290,40 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - "9090:9090"
+    depends_on:
+      - node-exporter
+      - postgres-exporter
+      - rabbitmq-exporter
     networks:
       - syntexa-network
     restart: unless-stopped
 
-  # Monitoring: Grafana (visualization)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: syntexa-grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
+  # Monitoring: Loki (log aggregation)
+  loki:
+    image: grafana/loki:latest
+    container_name: syntexa-loki
+    command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - grafana-data:/var/lib/grafana
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
     ports:
-      - "3000:3000"
+      - "3100:3100"
+    networks:
+      - syntexa-network
+    restart: unless-stopped
+
+  # Monitoring: Promtail (log collection)
+  promtail:
+    image: grafana/promtail:latest
+    container_name: syntexa-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./docker/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./var/log:/var/log/syntexa:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
-      - prometheus
+      - loki
     networks:
       - syntexa-network
     restart: unless-stopped
@@ -270,9 +334,9 @@ volumes:
   postgres-node2-blockchain-data:
   rabbitmq-data:
   prometheus-data:
-  grafana-data:
+  loki-data:
+
 
 networks:
   syntexa-network:
     driver: bridge
-

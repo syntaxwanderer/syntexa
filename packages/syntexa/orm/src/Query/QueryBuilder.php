@@ -186,9 +186,57 @@ class QueryBuilder
     public function getResult(): array
     {
         $sql = $this->getSQL();
-        $stmt = $this->connection->prepare($sql);
-        $stmt->execute($this->params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $start = microtime(true);
+        
+        try {
+            $stmt = $this->connection->prepare($sql);
+            $stmt->execute($this->params);
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $this->recordQuery($sql, $this->params, (microtime(true) - $start) * 1000);
+            return $result;
+        } catch (\Throwable $e) {
+            $this->recordQuery($sql, $this->params, (microtime(true) - $start) * 1000, $e->getMessage());
+            throw $e;
+        }
+    }
+
+    private function recordQuery(string $sql, array $params, float $duration, ?string $error = null): void
+    {
+        // Try to get inspector from Container if available, or use a global-ish way
+        // In this project, we can check if InspectorModule class exists and try to find it
+        if (class_exists('Syntexa\Inspector\InspectorModule')) {
+            try {
+                // We'll use a static accessor or check container
+                // For now, let's assume we can add a simple way to record segments
+                // Actually, let's use the Profiler or a dedicated DatabaseWatcher
+                $payload = [
+                    'sql' => $sql,
+                    'params' => $params,
+                    'duration' => round($duration, 3),
+                ];
+                if ($error) $payload['error'] = $error;
+
+                // Simple check: if we started the server with inspector, it might be available
+                // A better way is to use a Registry or just check Coroutine context
+                if (class_exists('Swoole\Coroutine')) {
+                    $context = \Swoole\Coroutine::getContext();
+                    if ($context) {
+                        // Directly add to segments in context if we don't want to depend on Inspector instance here
+                        if (!isset($context['inspector_segments'])) {
+                            $context['inspector_segments'] = [];
+                        }
+                        $context['inspector_segments'][] = [
+                            'type' => 'sql',
+                            'timestamp' => microtime(true),
+                            'payload' => $payload
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
     }
 
     /**

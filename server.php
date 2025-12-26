@@ -8,6 +8,9 @@ use Swoole\Http\Server;
 use Syntexa\Core\Application;
 use Syntexa\Core\ErrorHandler;
 use Syntexa\Core\Request;
+use Syntexa\Inspector\InspectorModule;
+use Syntexa\Inspector\Watchers\RequestWatcher;
+use Syntexa\Inspector\Storage\SharedCircularBuffer;
 
 /**
  * Swoole server entry point
@@ -41,15 +44,24 @@ echo "Configuring error handling...\n";
 ErrorHandler::configure($env);
 echo "Error handling configured\n";
 
+// Initialize Inspector Shared Storage
+echo "Initializing Inspector storage...\n";
+$sharedStorage = new SharedCircularBuffer(50);
+$inspector = new InspectorModule($sharedStorage);
+\Syntexa\Inspector\Profiler::setInspector($inspector);
+$requestWatcher = new RequestWatcher($inspector);
+echo "Inspector initialized\n";
+
 // Create Swoole HTTP server with environment configuration
 echo "Creating Swoole server on {$env->swooleHost}:{$env->swoolePort}...\n";
 $server = new Server($env->swooleHost, $env->swoolePort);
 echo "Swoole server created\n";
 
 // Server configuration from environment
-$pidFile = __DIR__ . '/var/swoole.pid';
-$statsFile = __DIR__ . '/var/server-stats.json';
-$swooleStatsFile = __DIR__ . '/var/swoole-stats.json';
+$appNameSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $env->appName)));
+$pidFile = __DIR__ . "/var/swoole-{$appNameSlug}.pid";
+$statsFile = __DIR__ . "/var/server-stats-{$appNameSlug}.json";
+$swooleStatsFile = __DIR__ . "/var/swoole-stats-{$appNameSlug}.json";
 @mkdir(dirname($pidFile), 0777, true);
 $server->set([
     'worker_num' => $env->swooleWorkerNum,
@@ -90,38 +102,130 @@ $server->on("start", function ($server) use ($env, $swooleStatsFile) {
     });
 });
 
-$server->on("request", function ($request, $response) use ($env, $app, $statsFile) {
+$server->on("workerStart", function ($server, $workerId) use ($inspector) {
+    if ($workerId < $server->setting['worker_num']) {
+        $inspector->setServer($server, $workerId);
+    }
+});
+
+$server->on("pipeMessage", function ($server, $srcWorkerId, $message) use ($inspector) {
+    $inspector->onPipeMessage($message);
+});
+
+$server->on("request", function ($request, $response) use ($env, $app, $statsFile, $swooleStatsFile, $server, $inspector, $requestWatcher) {
     $path = $request->server['request_uri'] ?? '/';
+    file_put_contents('/tmp/inspector_debug.log', date('H:i:s') . " Request: $path\n", FILE_APPEND);
     $method = $request->server['request_method'] ?? 'GET';
-    
-    // Update stats
-    $stats = json_decode(file_get_contents($statsFile), true) ?: ['requests' => 0, 'errors' => 0, 'start_time' => time()];
-    $stats['requests']++;
-    $stats['uptime'] = time() - $stats['start_time'];
-    file_put_contents($statsFile, json_encode($stats));
-    
+
     // Ensure response is always sent
     $responseSent = false;
     $hasError = false;
     
     try {
-        echo "📥 Incoming request: {$method} {$path}\n";
-    // Set CORS headers from environment
-    $response->header("Access-Control-Allow-Origin", $env->corsAllowOrigin);
-    $response->header("Access-Control-Allow-Methods", $env->corsAllowMethods);
-    $response->header("Access-Control-Allow-Headers", $env->corsAllowHeaders);
+        // Set CORS headers from environment
+        $response->header("Access-Control-Allow-Origin", $env->corsAllowOrigin);
+        $response->header("Access-Control-Allow-Methods", $env->corsAllowMethods);
+        $response->header("Access-Control-Allow-Headers", $env->corsAllowHeaders);
+        
+        if ($env->corsAllowCredentials) {
+            $response->header("Access-Control-Allow-Credentials", "true");
+        }
     
-    if ($env->corsAllowCredentials) {
-        $response->header("Access-Control-Allow-Credentials", "true");
-    }
-    
-    // Handle preflight requests
+        // Handle preflight requests
         if ($method === 'OPTIONS') {
-            echo "✈️  OPTIONS preflight request\n";
-        $response->status(200);
-        $response->end();
-        return;
-    }
+            echo "✈️  OPTIONS preflight request for $path\n";
+            $response->status(200);
+            $response->end();
+            return;
+        }
+
+        // Handle Inspector Stream
+        if ($path === '/_inspector/stream') {
+            $inspector->handleStream($request, $response);
+            return;
+        }
+
+        // Handle Inspector UI
+        if ($path === '/_inspector') {
+            $response->header("Content-Type", "text/html");
+            $template = file_get_contents(__DIR__ . '/packages/syntexa/inspector/src/UI/dashboard.html');
+            
+            // Parse cluster config
+            $clusterEnv = $app->getEnvironment()->getEnvValue('INSPECTOR_CLUSTER', '');
+            $nodes = [];
+            if ($clusterEnv) {
+                foreach (explode(',', $clusterEnv) as $nodeStr) {
+                    [$name, $url] = explode('|', trim($nodeStr), 2);
+                    $nodes[] = ['name' => trim($name), 'url' => trim($url)];
+                }
+            } else {
+                $nodes[] = ['name' => 'Local', 'url' => ''];
+            }
+            
+            $configJson = json_encode(['nodes' => $nodes]);
+            $content = str_replace('{{ CLUSTER_CONFIG }}', $configJson, $template);
+            $response->end($content);
+            return;
+        }
+        
+        // Handle /metrics endpoint for Prometheus
+        if ($path === '/metrics' && $method === 'GET') {
+            $swooleStats = file_exists($swooleStatsFile) ? json_decode(file_get_contents($swooleStatsFile), true) : [];
+            $appStats = file_exists($statsFile) ? json_decode(file_get_contents($statsFile), true) : [];
+            
+            $metrics = [];
+            $metrics[] = "# HELP swoole_connections_active Active connections";
+            $metrics[] = "# TYPE swoole_connections_active gauge";
+            $metrics[] = "swoole_connections_active " . ($swooleStats['connection_num'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_requests_total Total requests";
+            $metrics[] = "# TYPE swoole_requests_total counter";
+            $metrics[] = "swoole_requests_total " . ($swooleStats['request_count'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_workers_active Active workers";
+            $metrics[] = "# TYPE swoole_workers_active gauge";
+            $metrics[] = "swoole_workers_active " . ($swooleStats['worker_num'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_workers_idle Idle workers";
+            $metrics[] = "# TYPE swoole_workers_idle gauge";
+            $metrics[] = "swoole_workers_idle " . ($swooleStats['idle_worker_num'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_coroutines_active Active coroutines";
+            $metrics[] = "# TYPE swoole_coroutines_active gauge";
+            $metrics[] = "swoole_coroutines_active " . ($swooleStats['coroutine_num'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_memory_bytes Memory usage in bytes";
+            $metrics[] = "# TYPE swoole_memory_bytes gauge";
+            $metrics[] = "swoole_memory_bytes " . ($swooleStats['memory_total'] ?? 0);
+            
+            $metrics[] = "# HELP swoole_memory_peak_bytes Peak memory usage in bytes";
+            $metrics[] = "# TYPE swoole_memory_peak_bytes gauge";
+            $metrics[] = "swoole_memory_peak_bytes " . ($swooleStats['memory_peak'] ?? 0);
+            
+            $metrics[] = "# HELP app_requests_total Total application requests";
+            $metrics[] = "# TYPE app_requests_total counter";
+            $metrics[] = "app_requests_total " . ($appStats['requests'] ?? 0);
+            
+            $metrics[] = "# HELP app_errors_total Total application errors";
+            $metrics[] = "# TYPE app_errors_total counter";
+            $metrics[] = "app_errors_total " . ($appStats['errors'] ?? 0);
+            
+            $metrics[] = "# HELP app_uptime_seconds Application uptime in seconds";
+            $metrics[] = "# TYPE app_uptime_seconds gauge";
+            $metrics[] = "app_uptime_seconds " . ($appStats['uptime'] ?? 0);
+            
+            $response->header("Content-Type", "text/plain; version=0.0.4");
+            $response->end(implode("\n", $metrics) . "\n");
+            return;
+        }
+
+        // Update stats for non-system requests
+        $stats = json_decode(file_get_contents($statsFile), true) ?: ['requests' => 0, 'errors' => 0, 'start_time' => time()];
+        $stats['requests']++;
+        $stats['uptime'] = time() - $stats['start_time'];
+        file_put_contents($statsFile, json_encode($stats));
+
+        echo "📥 Incoming request: {$method} {$path}\n";
     
         // Content-Type will be set per response type (json/html/file). Do not force here.
     
@@ -129,8 +233,15 @@ $server->on("request", function ($request, $response) use ($env, $app, $statsFil
     $syntexaRequest = Request::create($request);
         echo "✅ Created Syntexa Request: {$syntexaRequest->getPath()} ({$syntexaRequest->getMethod()})\n";
     
+    // Start Inspector Watcher
+    $requestContext = $requestWatcher->startRequest($syntexaRequest);
+
     // Handle request
     $syntexaResponse = $app->handleRequest($syntexaRequest);
+
+    // End Inspector Watcher
+    $requestWatcher->endRequest($syntexaRequest, $syntexaResponse, $requestContext);
+
         echo "✅ Got response: {$syntexaResponse->getStatusCode()}\n";
     
     // Set status code
