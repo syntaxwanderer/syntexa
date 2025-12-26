@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syntexa Inspector</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .json-key {
+            color: #881391;
+        }
+
+        .json-string {
+            color: #268bd2;
+        }
+
+        .json-number {
+            color: #d33682;
+        }
+
+        .json-boolean {
+            color: #2aa198;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
+    <div id="app" class="flex flex-col h-full font-sans">
+        <!-- Header -->
+        <header class="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm flex-shrink-0 z-10">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center text-indigo-600">
+                    <svg class="w-8 h-8 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    <span class="text-xl font-bold tracking-tight">Syntexa Inspector</span>
+                </div>
+                <!-- Node Status Indicator (Interactive) -->
+                <div class="flex space-x-2 text-xs">
+                    <div v-for="node in nodes" :key="node.name" @click="toggleFilter(node.name)"
+                        class="flex items-center px-2 py-1 rounded border cursor-pointer transition-all duration-200"
+                        :class="[
+                        node.connected ? 'bg-gray-100' : 'bg-red-50',
+                        selectedNodeFilter === node.name ? 'ring-2 ring-indigo-500 border-indigo-500' : 'hover:bg-gray-200 border-transparent',
+                        selectedNodeFilter && selectedNodeFilter !== node.name ? 'opacity-50' : 'opacity-100'
+                    ]" :title="selectedNodeFilter === node.name ? 'Click to show all' : 'Click to filter'">
+                        <span class="w-2 h-2 rounded-full mr-2"
+                            :class="node.connected ? 'bg-green-500' : 'bg-red-500'"></span>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold">{{ node.name }}</span>
+                            <span class="text-[9px] opacity-70 leading-none">{{ node.statusMsg }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button @click="clearEvents" class="text-gray-500 hover:text-gray-700 p-2 rounded hover:bg-gray-100"
+                    title="Clear History">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex overflow-hidden">
+            <!-- Event List (Sidebar) -->
+            <div class="w-1/3 border-r bg-white flex flex-col min-w-[350px]">
+                <div
+                    class="p-3 border-b bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between">
+                    <span>Recent Requests</span>
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ events.length }}</span>
+                </div>
+                <div class="flex-1 overflow-y-auto">
+                    <div v-if="events.length === 0" class="p-8 text-center text-gray-400 text-sm">
+                        Waiting for requests...
+                    </div>
+                    <div v-for="event in reversedEvents" :key="event.id" @click="selectEvent(event)"
+                        class="p-4 border-b hover:bg-indigo-50 cursor-pointer transition-colors duration-150 group animate-fade-in"
+                        :class="selectedEvent && selectedEvent.id === event.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : 'border-l-4 border-l-transparent'">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-mono text-sm font-bold" :class="getMethodColor(event.payload.method)">
+                                {{ event.payload.method }}
+                            </span>
+                            <span class="text-xs text-gray-400">{{ formatTime(event.timestamp) }}</span>
+                        </div>
+                        <div class="text-sm text-gray-800 break-all font-medium mb-1 truncate">
+                            {{ event.payload.path }}
+                        </div>
+                        <div class="flex justify-between items-center text-xs mt-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-1.5 py-0.5 rounded text-white font-bold"
+                                    :class="getStatusColor(event.payload.status)">
+                                    {{ event.payload.status }}
+                                </span>
+                                <span class="text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ event.payload.duration
+                                    }}ms</span>
+                                <span class="text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{
+                                    formatBytes(event.payload.memory) }}</span>
+                            </div>
+                            <span class="text-xs px-1.5 py-0.5 rounded border bg-gray-50 text-gray-600 font-mono">{{
+                                event.node }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Details -->
+            <div class="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+                <div v-if="selectedEvent" class="flex-1 overflow-y-auto p-6">
+                    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">Request Details</h2>
+                            <div class="text-sm text-gray-500">
+                                Node: <span class="font-mono font-bold">{{ selectedEvent.node }}</span> • ID: {{
+                                selectedEvent.id }}
+                            </div>
+                        </div>
+
+                        <!-- Summary Cards -->
+                        <div class="grid grid-cols-4 gap-4 mb-8">
+                            <div class="p-4 bg-gray-50 rounded-lg border">
+                                <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Method</div>
+                                <div class="text-lg font-bold" :class="getMethodColor(selectedEvent.payload.method)">{{
+                                    selectedEvent.payload.method }}</div>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-lg border">
+                                <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Status</div>
+                                <div class="text-lg font-bold"
+                                    :class="getStatusTextColor(selectedEvent.payload.status)">{{
+                                    selectedEvent.payload.status }}</div>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-lg border">
+                                <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Duration</div>
+                                <div class="text-lg font-mono">{{ selectedEvent.payload.duration }} ms</div>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-lg border">
+                                <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Memory</div>
+                                <div class="text-lg font-mono">{{ formatBytes(selectedEvent.payload.memory) }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Headers -->
+                        <div class="mb-8">
+                            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 border-b pb-2">
+                                Response Headers</h3>
+                            <div class="bg-gray-50 rounded border overflow-hidden">
+                                <table class="w-full text-sm">
+                                    <tbody>
+                                        <tr v-for="(value, key) in selectedEvent.payload.response_headers" :key="key"
+                                            class="border-b last:border-0 hover:bg-gray-100">
+                                            <td class="py-2 px-4 w-1/4 font-semibold text-gray-600 border-r">{{ key }}
+                                            </td>
+                                            <td class="py-2 px-4 font-mono text-gray-800 break-all">{{ value }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mb-8">
+                            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 border-b pb-2">
+                                Request Headers</h3>
+                            <div class="bg-gray-50 rounded border overflow-hidden">
+                                <table class="w-full text-sm">
+                                    <tbody>
+                                        <tr v-for="(value, key) in selectedEvent.payload.request_headers" :key="key"
+                                            class="border-b last:border-0 hover:bg-gray-100">
+                                            <td class="py-2 px-4 w-1/4 font-semibold text-gray-600 border-r">{{ key }}
+                                            </td>
+                                            <td class="py-2 px-4 font-mono text-gray-800 break-all">{{ isArray(value) ?
+                                                value.join(', ') : value }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Query Params (truncated) -->
+                        <div v-if="Object.keys(selectedEvent.payload.query).length > 0" class="mb-8">
+                            <!-- ... existing table for query params ... -->
+                        </div>
+
+                        <!-- Deep Inspection & Timeline -->
+                        <div class="mb-8">
+                            <h3
+                                class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 border-b pb-2 flex justify-between items-center">
+                                <span>Deep Inspection & Timeline</span>
+                                <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-mono">
+                                    {{ (selectedEvent.segments || []).length }} segments
+                                </span>
+                            </h3>
+
+                            <div v-if="!selectedEvent.segments || selectedEvent.segments.length === 0"
+                                class="text-gray-400 text-sm py-4 text-center border-2 border-dashed rounded-lg">
+                                No deep inspection data available for this request.
+                            </div>
+
+                            <div v-else class="space-y-3">
+                                <div v-for="(seg, idx) in selectedEvent.segments" :key="idx"
+                                    class="border rounded-lg overflow-hidden bg-white hover:border-indigo-300 transition-colors">
+
+                                    <!-- Segment Header -->
+                                    <div class="px-4 py-2 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                                        @click="toggleSegment(idx)">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="w-2.5 h-2.5 rounded-full"
+                                                :class="getSegmentColor(seg.type)"></span>
+                                            <span class="text-xs font-bold uppercase text-gray-500 tracking-wider">{{
+                                                seg.type }}</span>
+                                            <span class="text-sm font-medium text-gray-800" v-if="seg.type === 'sql'">{{
+                                                truncate(seg.payload.sql, 60) }}</span>
+                                            <span class="text-sm font-medium text-gray-800"
+                                                v-if="seg.type === 'queue'">Enqueue: {{ seg.payload.queue }}</span>
+                                            <span class="text-sm font-medium text-gray-800"
+                                                v-if="seg.type === 'profile_span'">{{ seg.payload.label }}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-4">
+                                            <span v-if="seg.payload.duration"
+                                                class="text-xs font-mono text-gray-500 bg-white border px-1.5 py-0.5 rounded">
+                                                {{ seg.payload.duration }} ms
+                                            </span>
+                                            <svg class="w-4 h-4 text-gray-400 transition-transform duration-200"
+                                                :class="expandedSegments.includes(idx) ? 'rotate-180' : ''" fill="none"
+                                                stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Segment Detail (Collapsible) -->
+                                    <div v-if="expandedSegments.includes(idx)" class="px-4 py-3 border-t bg-white">
+                                        <!-- SQL Detail -->
+                                        <div v-if="seg.type === 'sql'">
+                                            <div
+                                                class="bg-gray-900 text-indigo-300 p-3 rounded font-mono text-xs break-all mb-3">
+                                                {{ seg.payload.sql }}
+                                            </div>
+                                            <div v-if="Object.keys(seg.payload.params).length > 0" class="text-xs">
+                                                <div class="font-bold text-gray-500 mb-1 uppercase tracking-tighter">
+                                                    Parameters</div>
+                                                <div class="grid grid-cols-2 gap-2">
+                                                    <div v-for="(v, k) in seg.payload.params"
+                                                        class="bg-gray-50 p-1.5 rounded border flex justify-between">
+                                                        <span class="text-gray-500">{{ k }}:</span>
+                                                        <span class="font-mono">{{ v }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div v-if="seg.payload.error"
+                                                class="mt-2 text-red-600 text-xs bg-red-50 p-2 rounded border border-red-200">
+                                                <strong>Error:</strong> {{ seg.payload.error }}
+                                            </div>
+                                        </div>
+
+                                        <!-- Queue Detail -->
+                                        <div v-if="seg.type === 'queue'" class="text-xs">
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <div class="text-gray-500 uppercase font-semibold mb-1">Queue</div>
+                                                    <div class="font-mono font-bold">{{ seg.payload.queue }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-gray-500 uppercase font-semibold mb-1">Transport
+                                                    </div>
+                                                    <div class="font-mono font-bold">{{ seg.payload.transport }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-3">
+                                                <div class="text-gray-500 uppercase font-semibold mb-1">Handler</div>
+                                                <div
+                                                    class="font-mono text-indigo-600 font-bold bg-indigo-50 p-2 rounded">
+                                                    {{ seg.payload.handler }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Profile Detail -->
+                                        <div v-if="seg.type === 'profile_span'" class="text-xs">
+                                            <div class="text-gray-500 uppercase font-semibold mb-1">Span Info</div>
+                                            <div class="p-2 bg-gray-50 rounded border font-mono">
+                                                Label: {{ seg.payload.label }}<br>
+                                                Duration: <span class="text-green-600 font-bold">{{ seg.payload.duration
+                                                    }}ms</span>
+                                            </div>
+                                            <div v-if="seg.payload.metadata && Object.keys(seg.payload.metadata).length > 0"
+                                                class="mt-2">
+                                                <div class="text-gray-500 uppercase font-semibold mb-1">Metadata</div>
+                                                <pre
+                                                    class="p-2 bg-gray-50 rounded border overflow-x-auto text-[10px]">{{ JSON.stringify(seg.payload.metadata, null, 2) }}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="flex-1 flex items-center justify-center text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122">
+                            </path>
+                        </svg>
+                        <p class="text-lg">Select a request to view details</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+        // Injected by server.php
+        const INITIAL_CONFIG = {{ CLUSTER_CONFIG }} || { nodes: [{ name: 'Local', url: '' }] };
+
+        createApp({
+            setup() {
+                const events = ref([]);
+                const selectedEvent = ref(null);
+                const isConnected = ref(false);
+                const nodes = ref(INITIAL_CONFIG.nodes.map(n => ({
+                    ...n,
+                    connected: false,
+                    statusMsg: 'Connecting...',
+                    lastSeen: null
+                })));
+                const eventSources = [];
+
+                const maxEvents = 50;
+
+                const selectedNodeFilter = ref("");
+                const expandedSegments = ref([]);
+
+                const toggleSegment = (idx) => {
+                    const i = expandedSegments.value.indexOf(idx);
+                    if (i === -1) expandedSegments.value.push(idx);
+                    else expandedSegments.value.splice(i, 1);
+                };
+
+                const getSegmentColor = (type) => {
+                    switch (type) {
+                        case 'sql': return 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]';
+                        case 'queue': return 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]';
+                        case 'profile_span': return 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]';
+                        default: return 'bg-gray-400';
+                    }
+                };
+
+                const truncate = (text, length) => {
+                    if (text.length <= length) return text;
+                    return text.substring(0, length) + '...';
+                };
+
+                const connectToNode = (node) => {
+                    const url = node.url ? `${node.url}/_inspector/stream` : '/_inspector/stream';
+                    console.log(`Connecting to ${node.name} at ${url}...`);
+
+                    const es = new EventSource(url);
+
+                    es.onopen = () => {
+                        console.log(`Connected to ${node.name}`);
+                        node.connected = true;
+                        node.statusMsg = 'Live';
+                    };
+
+                    es.onerror = (err) => {
+                        console.error(`Error connecting to ${node.name}`, err);
+                        node.connected = false;
+                        node.statusMsg = 'Disconnected';
+                        es.close();
+                        setTimeout(() => connectToNode(node), 5000);
+                    };
+
+                    // Handle 'history' event (initial batch)
+                    es.addEventListener('history', (e) => {
+                        try {
+                            const data = JSON.parse(e.data);
+                            console.log(`History from ${node.name}: ${data.length} items`);
+                            // history is an array
+                            if (Array.isArray(data)) {
+                                data.forEach(evt => {
+                                    evt.node = node.name;
+                                    addEvent(evt);
+                                });
+                            }
+                            node.lastSeen = new Date().toLocaleTimeString();
+                        } catch (err) {
+                            console.error('Failed to parse history', err);
+                        }
+                    });
+
+                    // Handle 'new_entry' event (real-time)
+                    es.addEventListener('new_entry', (e) => {
+                        try {
+                            const data = JSON.parse(e.data);
+                            console.log(`New entry from ${node.name}`);
+                            data.node = node.name;
+                            addEvent(data);
+                            node.lastSeen = new Date().toLocaleTimeString();
+                        } catch (err) {
+                            console.error('Failed to parse new_entry', err);
+                        }
+                    });
+                };
+
+                const addEvent = (event) => {
+                    // Prevent duplicates if same event ID comes (unlikely with timestamps but good safety)
+                    if (!events.value.find(e => e.id === event.id && e.node === event.node)) {
+                        events.value.push(event);
+                        if (events.value.length > maxEvents) {
+                            events.value.shift();
+                        }
+                    }
+                };
+
+                const filteredEvents = computed(() => {
+                    let result = events.value;
+                    if (selectedNodeFilter.value) {
+                        result = result.filter(e => e.node === selectedNodeFilter.value);
+                    }
+                    return [...result].reverse();
+                });
+
+                const toggleFilter = (nodeName) => {
+                    if (selectedNodeFilter.value === nodeName) {
+                        selectedNodeFilter.value = ""; // Deselect if already selected
+                    } else {
+                        selectedNodeFilter.value = nodeName; // Select new node
+                    }
+                };
+
+                const selectEvent = (event) => {
+                    selectedEvent.value = event;
+                };
+
+                const clearEvents = () => {
+                    events.value = [];
+                    selectedEvent.value = null;
+                };
+
+                // Formatters
+                const formatTime = (ts) => {
+                    return new Date(ts * 1000).toLocaleTimeString().split(' ')[0];
+                };
+
+                const formatBytes = (bytes, decimals = 2) => {
+                    if (!+bytes) return '0 Bytes';
+                    const k = 1024;
+                    const dm = decimals < 0 ? 0 : decimals;
+                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+                };
+
+                const isArray = (val) => Array.isArray(val);
+
+                const getMethodColor = (method) => {
+                    const colors = {
+                        GET: 'text-green-600',
+                        POST: 'text-blue-600',
+                        PUT: 'text-orange-600',
+                        DELETE: 'text-red-600',
+                        PATCH: 'text-purple-600',
+                    };
+                    return colors[method] || 'text-gray-600';
+                };
+
+                const getStatusColor = (status) => {
+                    if (status >= 200 && status < 300) return 'bg-green-500';
+                    if (status >= 300 && status < 400) return 'bg-blue-500';
+                    if (status >= 400 && status < 500) return 'bg-orange-500';
+                    if (status >= 500) return 'bg-red-500';
+                    return 'bg-gray-500';
+                };
+
+                const getStatusTextColor = (status) => {
+                    if (status >= 200 && status < 300) return 'text-green-600';
+                    if (status >= 300 && status < 400) return 'text-blue-600';
+                    if (status >= 400 && status < 500) return 'text-orange-600';
+                    if (status >= 500) return 'text-red-600';
+                    return 'text-gray-600';
+                }
+
+                onMounted(() => {
+                    // Connect to all nodes
+                    nodes.value.forEach(node => {
+                        connectToNode(node);
+                    });
+                });
+
+                return {
+                    events,
+                    reversedEvents: filteredEvents, // Expose as reversedEvents to avoid changing template loop
+                    selectedEvent,
+                    isConnected,
+                    nodes,
+                    selectedNodeFilter,
+                    toggleFilter,
+                    selectEvent,
+                    clearEvents,
+                    formatTime,
+                    formatBytes,
+                    getMethodColor,
+                    getStatusColor,
+                    getStatusTextColor,
+                    isArray,
+                    getSegmentColor,
+                    toggleSegment,
+                    truncate,
+                    expandedSegments
+                };
+            }
+        }).mount('#app');
+    </script>
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</body>
+
+</html>

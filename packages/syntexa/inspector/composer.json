@@ -1,0 +1,14 @@
+{
+    "name": "syntexa/module-inspector",
+    "description": "Real-time debugging inspector for Syntexa Framework",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Syntexa\\Inspector\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.4"
+    }
+}
